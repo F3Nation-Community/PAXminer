@@ -118,9 +118,8 @@ for user_id in users_df['user_id']:
                     attendance_tmp_df['Month'] = month
                     attendance_tmp_df['Day'] = day
                     attendance_tmp_df['Year'] = year
-                    attendance_tmp_df.sort_values(by=['Month'], inplace = True)
-                    month_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                    attendance_tmp_df.groupby(['Month', 'AO']).size().unstack().sort_values(['Month'], ascending=False).plot(kind='bar', stacked=True)
+                    attendance_tmp_df.sort_values(by=['Date'], inplace=True)
+                    attendance_tmp_df.groupby(['Month', 'AO'], sort=False).size().unstack().plot(kind='bar',stacked=True)
                     plt.title('Number of posts from '+ pax + ' by AO/Month for ' + yearnum)
                     plt.legend(loc = 'center left', bbox_to_anchor=(1, 0.5), frameon = False)
                     plt.ioff()
