@@ -125,7 +125,7 @@ try:
             bd_tmp_df2['Month'] = month
             bd_tmp_df2['Day'] = day
             bd_tmp_df2['Year'] = year
-            bd_tmp_df2.groupby(['Q', 'AO']).size().unstack().plot(kind='bar', stacked = True, figsize=(16,4))
+            bd_tmp_df2.groupby(['Q', 'AO']).size().unstack().plot(kind='bar', stacked = True, figsize=(25,4))
             #bd_tmp_df2.groupby(['Q'],['AO']).sum().size().plot(kind='bar', stacked=True, sort_columns=False, figsize=(8,4))
             plt.title('Number of Qs by individual across all AOs for ' + thismonthnamelong + ', ' + yearnum)
             plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
