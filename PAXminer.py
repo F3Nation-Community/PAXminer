@@ -30,7 +30,6 @@ db = sys.argv[1]
 
 # Set Slack token
 key = sys.argv[2]
-#key = 'xoxb-169121749921-2403218522869-UHfqt6N6ZHwikSZwwLljAKR9'
 slack = WebClient(token=key)
 
 #Define AWS Database connection criteria
