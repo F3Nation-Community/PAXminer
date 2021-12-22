@@ -6,6 +6,7 @@ on attendance for each member and sends it to them in a private Slack message.
 '''
 
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 import pandas as pd
 import pymysql.cursors
 import configparser
@@ -17,6 +18,9 @@ import sys
 import time
 import os
 import logging
+# This handler does retries when HTTP status 429 is returned
+from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
+
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
@@ -31,6 +35,9 @@ db = sys.argv[1]
 # Set Slack token
 key = sys.argv[2]
 slack = WebClient(token=key)
+# Enable rate limited error retries
+rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+slack.retry_handlers.append(rate_limit_handler)
 
 #Define AWS Database connection criteria
 mydb = pymysql.connect(
@@ -87,6 +94,14 @@ for index, row in users_df.iterrows():
 
 print('Now pulling all of those users beatdown attendance records... Stand by...')
 
+## Define Slack Message function
+def send_slack_message(channel, message, file):
+    return slack.files_upload(
+        channels=channel,
+        initial_comment=message,
+        file=file
+    )
+
 # Query AWS by user ID for attendance history
 #users_df = users_df.iloc[:10] # THIS LINE IS FOR TESTING PURPOSES, THIS FORCES ONLY n USER ROWS TO BE SENT THROUGH THE PIPE
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
@@ -125,20 +140,25 @@ for user_id in users_df['user_id']:
                     plt.ioff()
                     plt.savefig('./plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight') #save the figure to a file
                     total_graphs = total_graphs + 1
+                    message = 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!"
+                    file = './plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
+                    channel = user_id_tmp
                     #manual_graphs = [240,241,242,244,245,246,247,249,250]
                     if total_graphs > 0: # This is a count of total users processed, in case of error during processing. Set the total_graphs > to whatever # comes next in the log file row count.
                         print(total_graphs, 'PAX posting graph created for user', pax, 'Sending to Slack now... hang tight!')
                         #slack.chat.post_message(user_id_tmp, 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!")
-                        if (total_graphs in pause_on):
-                            time.sleep(45)
+                        #if (total_graphs in pause_on):
+                            #time.sleep(45)
                         try:
-                            slack.files_upload(channels=user_id_tmp, initial_comment='Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!", file='./plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg')
-                            attendance_tmp_df.hist()
+                            response = send_slack_message(channel, message, file)
+                            #attendance_tmp_df.hist()
                             os.system("echo " + user_id_tmp + " " + pax + " >>" + "./logs/" + db + "/PAXcharter.log")
                         except:
                             os.system("echo Error: " + user_id_tmp + " >>" + "./logs/" + db + "/PAXcharter.log")
                             logging.warning("Slack Error - Message not sent:", pax, user_id_tmp)
                             print("Slack error on " + pax + " " + user_id_tmp)
+                            raise e
+
                     else:
                         print(pax + ' skipped')
     except:

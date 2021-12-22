@@ -36,7 +36,7 @@ mydb1 = pymysql.connect(
 try:
     with mydb1.cursor() as cursor:
         #sql = "SELECT * FROM paxminer.regions where send_region_stats = 1" # <-- Update this for whatever region is being tested
-        sql = "SELECT * FROM paxminer.regions where region = 'STL'"  # <-- Update this for whatever region is being tested
+        sql = "SELECT * FROM paxminer.regions where region = 'JeffCo'"  # <-- Update this for whatever region is being tested
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions)

@@ -26,9 +26,11 @@ port = int(config['aws']['port'])
 user = config['aws']['user']
 password = config['aws']['password']
 db = sys.argv[1]
+#db = 'f3indianapolis'
 
 # Set Slack token
 key = sys.argv[2]
+#key = 'xoxb-169121749921-2403218522869-UHfqt6N6ZHwikSZwwLljAKR9'
 slack = WebClient(token=key)
 
 #Define AWS Database connection criteria
@@ -64,6 +66,7 @@ logging.info("Running PAXminer for " + db)
 # Make users Data Frame
 column_names = ['user_id', 'user_name', 'real_name']
 users_df = pd.DataFrame(columns = column_names)
+users_df.loc[len(users_df.index)] = ['APP', 'BackblastApp', 'BackblastApp']
 data = ''
 while True:
     users_response = slack.users_list(limit=1000, cursor=data)
@@ -119,6 +122,7 @@ for id in channels_df['channel_id']:
             messages = response.data['messages']
             temp_df = pd.json_normalize(messages)
             temp_df = temp_df[['user', 'type', 'text', 'ts']]
+            temp_df["user"] = temp_df["user"].fillna("APP")
             temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp'})
             temp_df["channel_id"] = id
             messages_df = messages_df.append(temp_df, ignore_index=True)
@@ -269,8 +273,8 @@ try:
 finally:
     mydb.close()
 logging.info("PAXminer complete: Inserted %s new PAX attendance records for region %s", inserts, db)
-try:
-    slack.chat_postMessage(channel='paxminer_logs', text=date_time + " PAXminer run complete for " + db)
-except:
-    pass
+#try:
+#    slack.chat_postMessage(channel='paxminer_logs', text=date_time + " PAXminer run complete for " + db)
+#except:
+#    pass
 print('Finished. You may go back to your day!')
