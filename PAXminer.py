@@ -26,7 +26,6 @@ port = int(config['aws']['port'])
 user = config['aws']['user']
 password = config['aws']['password']
 db = sys.argv[1]
-#db = 'f3indianapolis'
 
 # Set Slack token
 key = sys.argv[2]
