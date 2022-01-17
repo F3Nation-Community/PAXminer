@@ -93,11 +93,11 @@ for ao in aos_df['ao']:
                 #plt.title("Q Counts - " + ao + " " + thismonthnamelong + ", " + yearnum)
                 #plt.xlabel("")
                 #plt.ylabel("# Q Counts for " + thismonthname + ", " + yearnum)
-                plt.savefig('./plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+                plt.savefig('../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
                 print('Q Graph created for AO', ao, 'Sending to Slack now... hang tight!')
                 #ao2 = 'U0187M4NWG4'  # Use this for testing to send all charts to a specific user
                 #slack.chat.post_message(ao, 'Hey ' + ao + '! Here is a look at who Qd last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
-                slack.files_upload(channels=ao, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='./plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg')
+                slack.files_upload(channels=ao, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg')
                 total_graphs = total_graphs + 1
             except:
                 print('An Error Occurred in Sending')
@@ -130,11 +130,11 @@ try:
             plt.title('Number of Qs by individual across all AOs for ' + thismonthnamelong + ', ' + yearnum)
             plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
             plt.ioff()
-            plt.savefig('./plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg',
+            plt.savefig('../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg',
                         bbox_inches='tight')  # save the figure to a file
             print('Q Graph created for ', region, 'Sending to Slack now... hang tight!')
-            #slack.chat.post_message(firstf, 'Hey ' + region + '! Here is a look at who Qd across all AOs last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
-            slack.files_upload(channels=firstf, initial_comment='Hey ' + region + '! Here is a look at who has been stepping up to Q across all AOs for the month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='./plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg')
+            slack.conversations_join(channel=firstf)
+            slack.files_upload(channels=firstf, initial_comment='Hey ' + region + '! Here is a look at who has been stepping up to Q across all AOs for the month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg')
             total_graphs = total_graphs + 1
 finally:
     print('Total Q summary graphs made:', total_graphs)

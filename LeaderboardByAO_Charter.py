@@ -93,10 +93,10 @@ for ao in aos_df['ao']:
             plt.title("Monthly Leaderboard - " + thismonthnamelong + ", " + yearnum)
             plt.xlabel("")
             plt.ylabel("# Posts for " + thismonthname + ", 2021")
-            plt.savefig('./plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+            plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
             print('Monthly Leaderboard Graph created for AO', ao, 'Sending to Slack now... hang tight!')
             #slack.chat.post_message(ao, 'Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.")
-            slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='./plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
+            slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
             total_graphs = total_graphs + 1
         finally:
             print('Total graphs made:', total_graphs)
@@ -122,9 +122,9 @@ for ao in aos_df['ao']:
             plt.title("Year to Date Leaderboard - " + yearnum)
             plt.xlabel("")
             plt.ylabel("# Posts for " + yearnum + " - Year To Date")
-            plt.savefig('./plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+            plt.savefig('../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
             print('YTD Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
-            slack.files_upload(file='./plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
+            slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
             total_graphs = total_graphs + 1
         finally:
             print('Total graphs made:', total_graphs)

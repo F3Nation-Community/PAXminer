@@ -74,11 +74,11 @@ if not posts_df.empty:
     ax = posts_df.plot.bar(x='PAX', color={'UniqueAOs' : "blue", "Posts" : "orange"})
     plt.title("Monthly Leaderboard - " + thismonthnamelong + ", " + yearnum)
     plt.xlabel("")
-    plt.ylabel("# Posts for " + thismonthname + ", 2021")
-    plt.savefig('./plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+    plt.ylabel("# Posts for " + thismonthname + ", 2022")
+    plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
     print('Monthly Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
     #slack.chat.post_message(firstf, 'Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs. The month isn't over yet, SYITG and get on the board!")
-    slack.files_upload(channels=firstf, initial_comment='Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs.", file='./plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', )
+    slack.files_upload(channels=firstf, initial_comment='Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', )
     total_graphs = total_graphs + 1
 print('Total graphs made:', total_graphs)
 
@@ -102,8 +102,8 @@ if not posts_df.empty:
     plt.title("Year to Date Leaderboard - " + yearnum)
     plt.xlabel("")
     plt.ylabel("# Posts for " + yearnum + " - Year To Date")
-    plt.savefig('./plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+    plt.savefig('../plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
     print('YTD Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
-    slack.files_upload(file='./plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', channels=firstf)
+    slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', channels=firstf)
     total_graphs = total_graphs + 1
 print('Total graphs made:', total_graphs)

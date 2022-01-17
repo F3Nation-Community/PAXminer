@@ -116,10 +116,6 @@ for id in channels_df['channel_id']:
             print("Error: Unable to access Slack channel:", id, "in region:",db)
             logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
             pm_log_text += "Error: Unable to access Slack channel " + id + " in region " + db + "\n"
-            #try:
-            #    slack.chat_postMessage(channel='paxminer_logs', text=" - Error: Unable to access slack channel: <#" + id + "> in region " + db)
-            #except:
-            #    pass
         if next_cursor:
             # Keep going from next offset.
             data = next_cursor
@@ -127,7 +123,6 @@ for id in channels_df['channel_id']:
                 break
             pages = pages + 1
         else:
-            #print('Finished channel', id)
             break
 
 
@@ -170,11 +165,11 @@ def bd_info():
     else:
         coqid = 'NA'
     # Find the PAX Count line (if the Q put one in the BB)
-    pax_count = re.search(r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', str(text_tmp))
+    pax_count = re.search(r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', str(text_tmp), re.IGNORECASE)
     if pax_count:
         pass
     else:
-        pax_count = re.search(r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)', str(text_tmp))
+        pax_count = re.search(r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)', str(text_tmp), re.IGNORECASE)
     if pax_count:
         pax_count = pax_count.group()
         pax_count = re.findall('\d+', str(pax_count))
@@ -198,9 +193,7 @@ def bd_info():
     dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(text_tmp), re.IGNORECASE)
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
-        #print("First dateline: " + dateline)
         dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
-        #print("Removed Date: " + dateline)
         dateline = dateparser.parse(dateline) #dateparser is a flexible date module that can understand many different date formats
         if dateline is None:
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
@@ -279,21 +272,20 @@ try:
             fngs = row['fngs']
             ao_name = row['ao_name']
             val = (ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
+            # for Slackblast users, set the user_id as the Q
+            appnames = ['slackblast', 'Slackblast']
+            if user_name in appnames:
+                user_id = q_user_id
+                user_name = 'Q'
             q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + ">. Here's what happened when I tried to process it: \n"
             if msg_date > cutoff_date:
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
                     print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                     pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                    #try:
-                    #    slack.chat_postMessage(channel='paxminer_logs', text=" - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.")
-                    #except:
-                    #    pass
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Q is not present or not tagged correctly. Please ensure the Q is tagged using @PAX_NAME \n"
                         send_q_msg = 2
-                        #slack.chat_postMessage(channel=user_id, text="Hey " + user_name + "! I just saw your backblast posted on " + msg_date + " at <#" + ao_id + ">. There seems to be a problem. The Q is not present or not tagged correctly. Can you fix it? The correct syntax is\n \nQ: @tag_the_q_here\n \nThanks!")
-                    #print(backblast)
                     qc = 0
                 else:
                     pass
@@ -301,14 +293,9 @@ try:
                     logging.warning("Count error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
                     print('Backblast error on Count - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q.")
                     pm_log_text += " - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                    #try:
-                    #    slack.chat_postMessage(channel='paxminer_logs', text=" - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.")
-                    #except:
-                    #    pass
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Count is not present or not entered correctly. The correct syntax is Count: XX - Use digits please. \n"
                         send_q_msg = 2
-                        #slack.chat_postMessage(channel=user_id, text="Hey " + user_name + "! I just saw your backblast posted on " + msg_date + " at <#" + ao_id + ">. There seems to be a problem. The Count is not present or not entered correctly. Can you fix it? The correct syntax is \n \nCount: XX (You can also use 'Total:'). Use digits please. \n\nThanks!")
                     qc = 0
                 else:
                     pass
@@ -316,14 +303,9 @@ try:
                     logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
                     print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                     pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                    #try:
-                    #    slack.chat_postMessage(channel='paxminer_logs', text=" - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.")
-                    #except:
-                    #    pass
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. \n"
                         send_q_msg = 2
-                        #slack.chat_postMessage(channel=user_id, text="Hey " + user_name + "! I just saw your backblast posted on " + msg_date + " at <#" + ao_id + ">. There seems to be a problem. The Date is not entered correctly. Can you fix it? I can understand most common date formats like: \n \nDate: 12-25-2020\nDate: 2020-12-25\nDate: 12/25/20\nDate: December 25, 2020\nAnd even more... which means you must have used something really weird.\n\nThanks!")
                     qc = 0
                 if qc == 1:
                     cursor.execute(sql, val)
@@ -338,20 +320,17 @@ try:
                         print('Pax Count:',pax_count)
                         print('fngs:', fngs)
                         pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
-                        #try:
-                        #    slack.chat_postMessage(channel='paxminer_logs', text=" - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name)
-                        #except:
-                        #    pass
                         if user_id != 'APP':
                             q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
                             send_q_msg = 1
-                            #slack.chat_postMessage(channel=user_id, text="Hey " + user_name + "! I just captured and recorded your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB!")
                         print("Slack message sent to Q.")
                         logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
                 if send_q_msg == 2:
                     q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
                 if send_q_msg > 0:
+                    #print(backblast)
                     slack.chat_postMessage(channel=user_id, text=q_error_text)
+
                 #Add the Q to the bd_attendance table as some Q's are forgetting to add themselves to the PAX line
                 if qc == 1:
                     if q_user_id == 'NA':

@@ -58,7 +58,7 @@ thismonthnamelong = d.strftime("%B")
 yearnum = d.strftime("%Y")
 
 # Set up logging
-logging.basicConfig(filename='./logs/' + db + '/PAXcharter_error.log',
+logging.basicConfig(filename='../logs/' + db + '/PAXcharter_error.log',
                             filemode = 'a',
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
@@ -138,10 +138,10 @@ for user_id in users_df['user_id']:
                     plt.title('Number of posts from '+ pax + ' by AO/Month for ' + yearnum)
                     plt.legend(loc = 'center left', bbox_to_anchor=(1, 0.5), frameon = False)
                     plt.ioff()
-                    plt.savefig('./plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight') #save the figure to a file
+                    plt.savefig('../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight') #save the figure to a file
                     total_graphs = total_graphs + 1
                     message = 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!"
-                    file = './plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
+                    file = '../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
                     channel = user_id_tmp
                     #manual_graphs = [240,241,242,244,245,246,247,249,250]
                     if total_graphs > 0: # This is a count of total users processed, in case of error during processing. Set the total_graphs > to whatever # comes next in the log file row count.
@@ -152,9 +152,9 @@ for user_id in users_df['user_id']:
                         try:
                             response = send_slack_message(channel, message, file)
                             #attendance_tmp_df.hist()
-                            os.system("echo " + user_id_tmp + " " + pax + " >>" + "./logs/" + db + "/PAXcharter.log")
+                            os.system("echo " + user_id_tmp + " " + pax + " >>" + "../logs/" + db + "/PAXcharter.log")
                         except:
-                            os.system("echo Error: " + user_id_tmp + " >>" + "./logs/" + db + "/PAXcharter.log")
+                            os.system("echo Error: " + user_id_tmp + " >>" + "../logs/" + db + "/PAXcharter.log")
                             logging.warning("Slack Error - Message not sent:", pax, user_id_tmp)
                             print("Slack error on " + pax + " " + user_id_tmp)
                             raise e
