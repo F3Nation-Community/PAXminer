@@ -232,6 +232,8 @@ for index, row in f3_df.iterrows():
         bd_info()
     elif re.findall('^\*Back blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+    elif re.findall('^\*Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
+        bd_info()
     elif re.findall('^Slack blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
     elif re.findall('^Sackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
@@ -250,7 +252,7 @@ for index, row in f3_df.iterrows():
         bd_info()
     elif re.findall('^\*Sackdraft', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
-    elif re.findall('^\*Backblast', text_tmp, re.IGNORECASE | re.MULTILINE):
+    elif re.findall('^Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
 
 # Now connect to the AWS database and insert some rows!
@@ -328,7 +330,7 @@ try:
                 if send_q_msg == 2:
                     q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
                 if send_q_msg > 0:
-                    #print(backblast)
+                    print(backblast)
                     slack.chat_postMessage(channel=user_id, text=q_error_text)
 
                 #Add the Q to the bd_attendance table as some Q's are forgetting to add themselves to the PAX line

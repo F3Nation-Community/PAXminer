@@ -36,7 +36,7 @@ mydb1 = pymysql.connect(
 try:
     with mydb1.cursor() as cursor:
         #sql = "SELECT * FROM paxminer.regions where send_region_stats = 1" # <-- Update this for whatever region is being tested
-        sql = "SELECT * FROM paxminer.regions where region = 'STL'"  # <-- Update this for whatever region is being tested
+        sql = "SELECT * FROM paxminer.regions where region = 'Geneva'"  # <-- Update this for whatever region is being tested
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions)
@@ -55,7 +55,7 @@ for index, row in regions_df.iterrows():
     #os.system("./QCharter.py " + db + " " + key + " " + region + " " + firstf)
     #os.system("./Leaderboard_Charter.py " + db + " " + key + " " + region + " " + firstf)
     #os.system("./LeaderboardByAO_Charter.py " + db + " " + key + " " + region + " " + firstf)
-    os.system("./Join_Channels_and_Create_Directories.py " + db + " " + key + " " + region + " " + firstf)
-    #os.system("./AOCharter.py " + db + " " + key + " " + region + " " + firstf)
+    #os.system("./Join_Channels_and_Create_Directories.py " + db + " " + key + " " + region + " " + firstf)
+    os.system("./AOCharter.py " + db + " " + key + " " + region + " " + firstf)
     print('----------------- End of Region Update -----------------\n')
 print('\nPAXcharter execution complete.')

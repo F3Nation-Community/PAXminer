@@ -222,7 +222,11 @@ for index, row in f3_df.iterrows():
         list_pax()
     elif re.findall('^\*Back blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         list_pax()
+    elif re.findall('^\*Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
+        list_pax()
     elif re.findall('^Back blast', text_tmp, re.IGNORECASE | re.MULTILINE):
+        list_pax()
+    elif re.findall('^Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         list_pax()
     elif re.findall('^Backblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         list_pax()

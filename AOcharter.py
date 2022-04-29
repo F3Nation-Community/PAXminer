@@ -75,12 +75,12 @@ try:
         bd_tmp_df = pd.DataFrame(bd_tmp)
         bd_tmp_df['Month'] = bd_tmp_df['Month'].replace([1,2,3,4,5,6,7,8,9,10,11,12], ['January','February','March','April','May','June','July','August','September','October','November','December'])
         bd_df_styled = bd_tmp_df.style.background_gradient(cmap=cm, subset=['TotalPosts', 'TotalUniquePax']).set_caption("This region is ON FIRE!")
-        dfi.export(bd_df_styled, '../plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')  # save the figure to a file
+        dfi.export(bd_df_styled, './plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')  # save the figure to a file
         #fig = ff.create_table(bd_df_styled)
         #fig.write_image('./plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
         print('AO summary table created for all AOs. Sending to Slack now... hang tight!')
         #slack.chat_postMessage(channel=firstf, text="Hey " + region + " - it's the First of the Month! (queue Bone, Thungz and Harmony tunes here)! Here is a detailed summary of AO posting stats for the region last month.")
-        slack.files_upload(channels=firstf, initial_comment="Hey " + region + " - it's that time of the Month again. Here is a detailed summary of AO posting stats for the region last month.", file='../plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
+        slack.files_upload(channels=firstf, initial_comment="Hey " + region + " - it's that time of the Month again. Here is a detailed summary of AO posting stats for the region last month.", file='./plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
         total_graphs = total_graphs + 1
 finally:
     print('Total graphs made:', total_graphs)
