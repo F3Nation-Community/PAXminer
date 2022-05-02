@@ -17,6 +17,8 @@ import configparser
 import sys
 import dataframe_image as dfi
 import seaborn as sns
+# This handler does retries when HTTP status 429 is returned
+from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 import plotly.figure_factory as ff
 
 # Configure AWS credentials
@@ -34,6 +36,9 @@ region = sys.argv[3]
 key = sys.argv[2]
 slack = WebClient(token=key)
 firstf = sys.argv[4] #parameter input for designated 1st-f channel for the region
+# Enable rate limited error retries
+rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+slack.retry_handlers.append(rate_limit_handler)
 
 #Define AWS Database connection criteria
 mydb = pymysql.connect(
