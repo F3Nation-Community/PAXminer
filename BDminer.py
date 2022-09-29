@@ -347,7 +347,18 @@ try:
                         mydb.commit()
                         if cursor.rowcount == 1:
                             print(cursor.rowcount, "Q's attendance at beatdown recorded.")
-
+                    if coq_user_id == 'NA':
+                        pass
+                    else:
+                        sql2 = "INSERT IGNORE into bd_attendance (user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        user_id = row['coq_user_id']
+                        ao_id = row['ao_id']
+                        date = row['bd_date']
+                        val2 = (user_id, ao_id, date, user_id)
+                        cursor.execute(sql2, val2)
+                        mydb.commit()
+                        if cursor.rowcount == 1:
+                            print(cursor.rowcount, "Co-Q's attendance at beatdown recorded.")
             else:
                 pass
 

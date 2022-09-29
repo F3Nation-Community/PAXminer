@@ -51,7 +51,7 @@ mydb = pymysql.connect(
 
 #Get Current Year, Month Number and Name
 d = datetime.datetime.now()
-d = d - datetime.timedelta(days=3)
+d = d - datetime.timedelta(days=7)
 thismonth = d.strftime("%m")
 thismonthname = d.strftime("%b")
 thismonthnamelong = d.strftime("%B")
@@ -162,7 +162,7 @@ for user_id in users_df['user_id']:
                     else:
                         print(pax + ' skipped')
     except:
-            print("An exception occurred")
+            print("An exception occurred for User ID " + user_id)
     finally:
         plt.close('all') #Note - this was added after the December 2020 processing, make sure this works
 print('Total graphs made:', total_graphs)

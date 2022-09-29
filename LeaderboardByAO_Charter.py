@@ -53,7 +53,7 @@ total_graphs = 0 # Sets a counter for the total number of graphs made (users wit
 
 #Get Current Year, Month Number and Name
 d = datetime.datetime.now()
-d = d - datetime.timedelta(days=3)
+d = d - datetime.timedelta(days=7)
 thismonth = d.strftime("%m")
 thismonthname = d.strftime("%b")
 thismonthnamelong = d.strftime("%B")
@@ -97,7 +97,7 @@ for ao in aos_df['ao']:
             ax = posts_df.plot.bar(x='PAX', color={"Posts" : "orange"})
             plt.title("Monthly Leaderboard - " + thismonthnamelong + ", " + yearnum)
             plt.xlabel("")
-            plt.ylabel("# Posts for " + thismonthname + ", 2021")
+            plt.ylabel("# Posts for " + thismonthname + ", " + yearnum)
             plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
             print('Monthly Leaderboard Graph created for AO', ao, 'Sending to Slack now... hang tight!')
             #slack.chat.post_message(ao, 'Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.")

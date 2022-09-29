@@ -44,7 +44,7 @@ mydb = pymysql.connect(
 
 #Get Current Year, Month Number and Name
 d = datetime.datetime.now()
-d = d - datetime.timedelta(days=3)
+d = d - datetime.timedelta(days=7)
 thismonth = d.strftime("%m")
 thismonthname = d.strftime("%b")
 thismonthnamelong = d.strftime("%B")

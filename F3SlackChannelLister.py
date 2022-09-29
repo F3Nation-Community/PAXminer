@@ -46,6 +46,10 @@ channels_df = channels_df.rename(columns={'id' : 'channel_id', 'name' : 'ao', 'c
 
 # Now connect to the AWS database and insert some rows!
 print('Updating Slack channel list / AOs for region...')
+print('Channels json response:')
+print(channels_response)
+print('Channels.data:')
+print(channels)
 try:
     with mydb.cursor() as cursor:
         for index, row in channels_df.iterrows():
