@@ -107,9 +107,9 @@ for id in channels_df['channel_id']:
             next_cursor = response_metadata.get('next_cursor')
             messages = response.data['messages']
             temp_df = pd.json_normalize(messages)
-            temp_df = temp_df[['user', 'type', 'text', 'ts']]
+            temp_df = temp_df[['user', 'type', 'text', 'ts', 'edited.ts']]
             temp_df["user"]=temp_df["user"].fillna("APP")
-            temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp'})
+            temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
             temp_df["channel_id"] = id
             messages_df = messages_df.append(temp_df, ignore_index=True)
         except:
@@ -124,6 +124,9 @@ for id in channels_df['channel_id']:
             pages = pages + 1
         else:
             break
+
+# Add ts_edited column to dataframe if it doesn't already exist
+messages_df['ts_edited'] = messages_df.get('ts_edited', messages_df['timestamp'])
 
 
 # Calculate Date and Time columns
@@ -143,7 +146,8 @@ messages_df['time'] = msg_time
 # Merge the data frames into 1 joined DF
 f3_df = pd.merge(messages_df, users_df)
 f3_df = pd.merge(f3_df,channels_df)
-f3_df = f3_df[['timestamp', 'date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
+f3_df = f3_df[['timestamp', 'ts_edited', 'date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
+f3_df['ts_edited'] = f3_df['ts_edited'].fillna('NA')
 
 # Now find only backblast messages (either "Backblast" or "Back Blast") - note .casefold() denotes case insensitivity - and pull out the PAX user ID's identified within
 # This pattern finds the Q user ID
@@ -209,12 +213,14 @@ def bd_info():
     else:
         ao_name = 'Unknown'
     global bd_df
-    new_row = {'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
+    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
     bd_df = bd_df.append(new_row, ignore_index = True)
 
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
+    timestamp = row['timestamp']
+    ts_edited = row['ts_edited']
     msg_date = row['date']
     text_tmp = row['text']
     text_tmp = re.sub('_\\xa0', ' ', str(text_tmp))
@@ -261,7 +267,9 @@ try:
         for index, row in bd_df.iterrows():
             qc = 1
             send_q_msg = 0
-            sql = "INSERT IGNORE into beatdowns (ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+            sql = "INSERT IGNORE into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            timestamp = row['timestamp']
+            ts_edited = row['ts_edited']
             ao_id = row['ao_id']
             msg_date = row['msg_date']
             bd_date = row['bd_date']
@@ -273,7 +281,7 @@ try:
             user_id = row['user_id']
             fngs = row['fngs']
             ao_name = row['ao_name']
-            val = (ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
+            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
             # for Slackblast users, set the user_id as the Q
             appnames = ['slackblast', 'Slackblast']
             if user_name in appnames:
