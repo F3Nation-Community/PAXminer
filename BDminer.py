@@ -379,3 +379,46 @@ try:
                             print(cursor.rowcount, "Co-Q's attendance at beatdown recorded.")
             else:
                 pass
+
+
+        sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
+        cursor.execute(sql3)
+        mydb.commit()
+
+        sql4 = "UPDATE beatdowns SET fng_count=0 where fngs in ('none', 'None', 'None listed', 'NA', 'zero', '-', '') AND fng_count IS NULL"
+        cursor.execute(sql4)
+        mydb.commit()
+
+        sql5 = "UPDATE beatdowns SET fng_count = 0 where fngs like '0%' AND fng_count IS NULL"
+        cursor.execute(sql5)
+        mydb.commit()
+
+        sql6 = "UPDATE beatdowns SET fng_count = 1 where fngs like '1%' AND fng_count IS NULL"
+        cursor.execute(sql6)
+        mydb.commit()
+
+        sql7 = "UPDATE beatdowns SET fng_count = 2 where fngs like '2%' AND fng_count IS NULL"
+        cursor.execute(sql7)
+        mydb.commit()
+
+        sql8 = "UPDATE beatdowns SET fng_count = 3 where fngs like '3%' AND fng_count IS NULL"
+        cursor.execute(sql8)
+        mydb.commit()
+
+        sql9 = "UPDATE beatdowns SET fng_count = 4 where fngs like '4%' AND fng_count IS NULL"
+        cursor.execute(sql9)
+        mydb.commit()
+
+        sql10 = "UPDATE beatdowns SET fng_count = 5 where fngs like '5%' AND fng_count IS NULL"
+        cursor.execute(sql10)
+        mydb.commit()
+finally:
+    mydb.close()
+print('Finished. Beatdowns are up to date.')
+logging.info("BDminer execution complete for region " + db)
+pm_log_text += "End of PAXminer hourly run"
+try:
+    slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
+except:
+    print("Slack log message error - not posted")
+    pass
