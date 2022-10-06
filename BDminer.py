@@ -18,6 +18,8 @@ import sys
 import logging
 import math
 
+pd.options.mode.chained_assignment = None  # default='warn'
+
 # Configure AWS credentials
 config = configparser.ConfigParser();
 config.read('../config/credentials.ini');
@@ -104,19 +106,27 @@ for id in channels_df['channel_id']:
             #print("Checking channel " + id) # <-- Use this if debugging any slack channels throwing errors
             response = slack.conversations_history(channel=id, cursor=data)
             response_metadata = response.get('response_metadata', {})
-            next_cursor = response_metadata.get('next_cursor')
+            try:
+                next_cursor = response_metadata.get('next_cursor')
+            except:
+                pass
             messages = response.data['messages']
             temp_df = pd.json_normalize(messages)
-            temp_df = temp_df[['user', 'type', 'text', 'ts', 'edited.ts']]
-            temp_df["user"]=temp_df["user"].fillna("APP")
-            temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
-            temp_df["channel_id"] = id
-            messages_df = messages_df.append(temp_df, ignore_index=True)
+            try:
+                temp_df = temp_df[['user', 'type', 'text', 'ts', 'edited.ts']]
+            except:
+                temp_df = temp_df[['user', 'type', 'text', 'ts']]
+                temp_df['edited.ts'] = "NA"
+            finally:
+                temp_df["user"]=temp_df["user"].fillna("APP")
+                temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
+                temp_df["channel_id"] = id
+                messages_df = messages_df.append(temp_df, ignore_index=True)
         except:
             print("Error: Unable to access Slack channel:", id, "in region:",db)
             logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
             pm_log_text += "Error: Unable to access Slack channel " + id + " in region " + db + "\n"
-        if next_cursor:
+        if next_cursor != "None":
             # Keep going from next offset.
             data = next_cursor
             if pages == 1: ## Total number of pages to query from Slack
@@ -126,7 +136,7 @@ for id in channels_df['channel_id']:
             break
 
 # Add ts_edited column to dataframe if it doesn't already exist
-messages_df['ts_edited'] = messages_df.get('ts_edited', messages_df['timestamp'])
+#messages_df['ts_edited'] = messages_df.get('ts_edited', messages_df['timestamp'])
 
 
 # Calculate Date and Time columns
@@ -369,46 +379,3 @@ try:
                             print(cursor.rowcount, "Co-Q's attendance at beatdown recorded.")
             else:
                 pass
-
-
-        sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
-        cursor.execute(sql3)
-        mydb.commit()
-
-        sql4 = "UPDATE beatdowns SET fng_count=0 where fngs in ('none', 'None', 'None listed', 'NA', 'zero', '-', '') AND fng_count IS NULL"
-        cursor.execute(sql4)
-        mydb.commit()
-
-        sql5 = "UPDATE beatdowns SET fng_count = 0 where fngs like '0%' AND fng_count IS NULL"
-        cursor.execute(sql5)
-        mydb.commit()
-
-        sql6 = "UPDATE beatdowns SET fng_count = 1 where fngs like '1%' AND fng_count IS NULL"
-        cursor.execute(sql6)
-        mydb.commit()
-
-        sql7 = "UPDATE beatdowns SET fng_count = 2 where fngs like '2%' AND fng_count IS NULL"
-        cursor.execute(sql7)
-        mydb.commit()
-
-        sql8 = "UPDATE beatdowns SET fng_count = 3 where fngs like '3%' AND fng_count IS NULL"
-        cursor.execute(sql8)
-        mydb.commit()
-
-        sql9 = "UPDATE beatdowns SET fng_count = 4 where fngs like '4%' AND fng_count IS NULL"
-        cursor.execute(sql9)
-        mydb.commit()
-
-        sql10 = "UPDATE beatdowns SET fng_count = 5 where fngs like '5%' AND fng_count IS NULL"
-        cursor.execute(sql10)
-        mydb.commit()
-finally:
-    mydb.close()
-print('Finished. Beatdowns are up to date.')
-logging.info("BDminer execution complete for region " + db)
-pm_log_text += "End of PAXminer hourly run"
-try:
-    slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
-except:
-    print("Slack log message error - not posted")
-    pass
