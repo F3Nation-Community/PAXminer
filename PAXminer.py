@@ -17,6 +17,7 @@ import configparser
 import sys
 import logging
 import dateparser
+from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
@@ -30,6 +31,9 @@ db = sys.argv[1]
 # Set Slack token
 key = sys.argv[2]
 slack = WebClient(token=key)
+# Enable rate limited error retries
+rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+slack.retry_handlers.append(rate_limit_handler)
 
 #Define AWS Database connection criteria
 mydb = pymysql.connect(

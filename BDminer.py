@@ -17,6 +17,7 @@ import configparser
 import sys
 import logging
 import math
+from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -32,6 +33,9 @@ db = sys.argv[1] # Use this for the multi-region automated update
 # Set Slack token
 key = sys.argv[2] # Use this for the multi-region automated update
 slack = WebClient(token=key)
+# Enable rate limited error retries
+rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+slack.retry_handlers.append(rate_limit_handler)
 
 #Define AWS Database connection criteria
 mydb = pymysql.connect(
@@ -134,10 +138,6 @@ for id in channels_df['channel_id']:
             pages = pages + 1
         else:
             break
-
-# Add ts_edited column to dataframe if it doesn't already exist
-#messages_df['ts_edited'] = messages_df.get('ts_edited', messages_df['timestamp'])
-
 
 # Calculate Date and Time columns
 msg_date = []
