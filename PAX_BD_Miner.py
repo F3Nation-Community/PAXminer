@@ -63,12 +63,12 @@ cutoff_date = cutoff_date.strftime('%Y-%m-%d')
 date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
 
 # Set up logging
-logging.basicConfig(filename='../logs/BDminer.log',
+logging.basicConfig(filename='../logs/BD_PAX_miner.log',
                             filemode = 'a',
                             format='%(asctime)s %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
-logging.info("Running BDminer for " + db)
+logging.info("Running combined BD+PAXminer for " + db)
 pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
 
 # Make users Data Frame
@@ -97,6 +97,7 @@ for index, row in users_df.iterrows():
     if un_tmp == "" :
         row['user_name'] = rn_tmp
 
+# Retrieve Channel List from AWS database (backblast = 1 denotes which channels to search for backblasts)
 try:
     with mydb.cursor() as cursor:
         sql = "SELECT channel_id, ao FROM aos WHERE backblast = 1 AND archived = 0"
@@ -104,7 +105,7 @@ try:
         channels = cursor.fetchall()
         channels_df = pd.DataFrame(channels, columns={'channel_id', 'ao'})
 finally:
-    print('Looking for new Beatdowns from the Slack Backblast posts! Stand by...')
+    print('Looking for new Backblasts from Slack! Stand by...')
 
 # Get all channel conversation
 messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
@@ -155,20 +156,21 @@ for ts in messages_df['timestamp']:
         dt = dt.astimezone(pytz.timezone('America/Chicago'))
         msg_date.append(dt.strftime('%Y-%m-%d'))
         msg_time.append(dt.strftime('%H:%M:%S'))
-messages_df['date'] = msg_date
+messages_df['msg_date'] = msg_date
 messages_df['time'] = msg_time
 
 
 # Merge the data frames into 1 joined DF
 f3_df = pd.merge(messages_df, users_df)
 f3_df = pd.merge(f3_df,channels_df)
-f3_df = f3_df[['timestamp', 'ts_edited', 'date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
+f3_df = f3_df[['timestamp', 'ts_edited', 'msg_date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
 f3_df['ts_edited'] = f3_df['ts_edited'].fillna('NA')
 
 # Now find only backblast messages (either "Backblast" or "Back Blast") - note .casefold() denotes case insensitivity - and pull out the PAX user ID's identified within
-# This pattern finds the Q user ID
+# This pattern finds username links followed by commas: pat = r'(?<=\\xa0).+?(?=,)'
 pat = r'(?<=\<).+?(?=>)' # This pattern finds username links within brackets <>
 bd_df = pd.DataFrame([])
+pax_attendance_df = pd.DataFrame([])
 warnings.filterwarnings("ignore", category=DeprecationWarning) #This prevents displaying the Deprecation Warning that is present for the RegEx lookahead function used below
 
 def bd_info():
@@ -232,12 +234,60 @@ def bd_info():
     new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
     bd_df = bd_df.append(new_row, ignore_index = True)
 
+def list_pax():
+    #find Q info
+    qline = re.findall(r'(?<=\n)\*?V?Qs?\*?:.+?(?=\n)', str(text_tmp), re.MULTILINE) #This is regex looking for \nQ: with or without an * before Q
+    qids = re.findall(pat, str(qline), re.MULTILINE)
+    qids = [re.sub(r'@', '', i) for i in qids]
+    if qids:
+        qid = qids[0]
+    else:
+        qid = 'NA'
+    if len(qids) > 1:
+        coqid = qids[1]
+    else:
+        coqid = 'NA'
+    #paxline = [line for line in text_tmp.split('\n') if 'pax'.casefold() in line.casefold()]
+    paxline = re.findall(r'(?<=\n)\*?(?i)PAX\*?:\*?.+?(?=\n)', str(text_tmp), re.MULTILINE) #This is a case insensitive regex looking for \nPAX with or without an * before PAX
+    #print(paxline)
+    pax = re.findall(pat, str(paxline), re.MULTILINE)
+    pax = [re.sub(r'@','', i) for i in pax]
+    if pax:
+        global pax_attendance_df
+        #print(pax)
+        df = pd.DataFrame(pax)
+        df['timestamp'] = timestamp
+        df['ts_edited'] = ts_edited
+        df.columns =['user_id', 'timestamp', 'ts_edited']
+        df['ao'] = ao_tmp
+        # Find the Date:
+        dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(text_tmp), re.IGNORECASE)
+        msg_date = row['msg_date']
+        if dateline:
+            # print("First dateline: " + dateline)
+            dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
+            # print("Removed Date: " + dateline)
+            dateline = dateparser.parse(
+                dateline)  # dateparser is a flexible date module that can understand many different date formats
+            # print("Parsed:")
+            # print(dateline)
+            if dateline is None:
+                date_tmp = '2099-12-31'  # sets a date many years in the future just to catch this error later (needs to be a future date)
+            else:
+                date_tmp = str(datetime.strftime(dateline, '%Y-%m-%d'))
+        else:
+            date_tmp = msg_date
+        df['bd_date'] = date_tmp
+        df['msg_date'] = msg_date
+        df['q_user_id'] = qid
+        pax_attendance_df = pax_attendance_df.append(df)
+
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
     timestamp = row['timestamp']
     ts_edited = row['ts_edited']
-    msg_date = row['date']
+    msg_date = row['msg_date']
     text_tmp = row['text']
     text_tmp = re.sub('_\\xa0', ' ', str(text_tmp))
     text_tmp = re.sub('\\xa0', ' ', str(text_tmp))
@@ -248,35 +298,49 @@ for index, row in f3_df.iterrows():
     user_id = row['user_id']
     if re.findall('^Slackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Backblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Backblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Back blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Slack blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Sackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Slackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Slack blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Sackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Slackbast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Slackbast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Sackdraft', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^\*Sackdraft', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
+        list_pax()
     elif re.findall('^Back Blast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
-
+        list_pax()
 # Now connect to the AWS database and insert some rows!
 try:
     with mydb.cursor() as cursor:
@@ -419,12 +483,42 @@ try:
         cursor.execute(sql10)
         mydb.commit()
 finally:
+    pass
+print('Finished updating beatdowns - starting PAX attendance...')
+logging.info("Beatdown execution complete for region " + db)
+
+# Now connect to the AWS database and insert PAX records!
+inserts = 0
+try:
+    with mydb.cursor() as cursor:
+        for index, row in pax_attendance_df.iterrows():
+            sql11 = "INSERT IGNORE INTO bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s, %s, %s)"
+            timestamp = row['timestamp']
+            ts_edited = row['ts_edited']
+            user_id_tmp = row['user_id']
+            msg_date = row['msg_date']
+            ao_tmp = row['ao']
+            date_tmp = row['bd_date']
+            q_user_id = row['q_user_id']
+            val = (timestamp, ts_edited, user_id_tmp, ao_tmp, date_tmp, q_user_id)
+            if msg_date > cutoff_date:
+                if date_tmp == '2099-12-31':
+                    print('Backblast error on Date - AO:', ao_tmp, 'Date:', date_tmp, 'Posted By:', user_id_tmp)
+                else:
+                    if q_user_id != 'NA':
+                        cursor.execute(sql11, val)
+                        mydb.commit()
+                        if cursor.rowcount > 0:
+                            print(cursor.rowcount, "record inserted for", user_id_tmp, "at", ao_tmp, "on", date_tmp, "with Q =", q_user_id)
+                            inserts = inserts + 1
+finally:
     mydb.close()
-print('Finished. Beatdowns are up to date.')
-logging.info("BDminer execution complete for region " + db)
+logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for region %s", inserts, db)
+
 pm_log_text += "End of PAXminer hourly run"
 try:
     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
 except:
     print("Slack log message error - not posted")
     pass
+print('Finished. You may go back to your day!')

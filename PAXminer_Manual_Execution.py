@@ -9,6 +9,8 @@ import pandas as pd
 import pymysql.cursors
 import configparser
 import os
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
@@ -46,9 +48,10 @@ for index, row in regions_df.iterrows():
     key = row['slack_token']
     db = row['schema_name']
     print('Executing user updates for region ' + region)
-    os.system("./F3SlackUserLister.py " + db + " " + key)
+    #os.system("./F3SlackUserLister.py " + db + " " + key)
     #os.system("./F3SlackChannelLister.py " + db + " " + key)
     #os.system("./BDminer.py " + db + " " + key)
     #os.system("./PAXminer.py " + db + " " + key)
+    os.system("./PAX_BD_Miner.py " + db + " " + key)
     print('----------------- End of Region Update -----------------\n')
 print('\nPAXminer execution complete.')

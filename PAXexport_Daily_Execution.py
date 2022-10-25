@@ -40,7 +40,7 @@ mydb1 = pymysql.connect(
 # Get list of regions and Slack tokens for PAXminer execution
 try:
     with mydb1.cursor() as cursor:
-        sql = "SELECT * FROM paxminer.regions"
+        sql = "SELECT * FROM paxminer.regions WHERE active = 1"
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
