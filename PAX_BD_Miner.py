@@ -39,6 +39,7 @@ db = sys.argv[1] # Use this for the multi-region automated update
 # Set Slack token
 key = sys.argv[2] # Use this for the multi-region automated update
 slack = WebClient(token=key)
+
 # Enable rate limited error retries
 rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
 slack.retry_handlers.append(rate_limit_handler)
@@ -105,7 +106,18 @@ try:
         channels = cursor.fetchall()
         channels_df = pd.DataFrame(channels, columns={'channel_id', 'ao'})
 finally:
-    print('Looking for new Backblasts from Slack! Stand by...')
+    print('Pulling current beatdown records...')
+
+# Retrieve backblast entries from regional database for comparison to identify new or updated posts
+try:
+    with mydb.cursor() as cursor:
+        sql12 = "SELECT ao_id, timestamp, ts_edited FROM beatdowns WHERE bd_date >= DATE_ADD(CURDATE(), INTERVAL -6 DAY)"
+        cursor.execute(sql12)
+        curr_bd = cursor.fetchall()
+        curr_bd_df = pd.DataFrame(curr_bd, columns={'ao_id', 'timestamp', 'ts_edited'})
+        curr_bd_df['bd_concat'] = curr_bd_df['ao_id'] + curr_bd_df['timestamp'] + curr_bd_df['ts_edited']
+finally:
+    print('Looking for new backblasts from Slack...')
 
 # Get all channel conversation
 messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
@@ -418,7 +430,7 @@ try:
                 if send_q_msg == 2:
                     q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
                 if send_q_msg > 0:
-                    print(backblast)
+                    #print(backblast)
                     slack.chat_postMessage(channel=user_id, text=q_error_text)
 
                 #Add the Q to the bd_attendance table as some Q's are forgetting to add themselves to the PAX line

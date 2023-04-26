@@ -56,7 +56,6 @@ finally:
 
 # Join each AO channel
 print("Ensuring PAXminer is a member of all AO channels...")
-'''
 for index, row in aos_df.iterrows():
     ao = row['ao']
     channel_id = row['channel_id']
@@ -65,7 +64,6 @@ for index, row in aos_df.iterrows():
         slack.conversations_join(channel=channel_id)
     except:
         print('An Error Occurred in Joining ' + ao + " " + channel_id)
-'''
 
 #Make sure log and plot directories are created
 plotdir ='plots/' + db

@@ -36,7 +36,7 @@ mydb1 = pymysql.connect(
 # Get list of regions and Slack tokens for PAXminer execution
 try:
     with mydb1.cursor() as cursor:
-        sql = "SELECT * FROM paxminer.regions where region = 'STL'" # <-- Update this for whatever region is being tested
+        sql = "SELECT * FROM paxminer.regions where region = 'St_Simons'" # <-- Update this for whatever region is being tested
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
@@ -48,10 +48,10 @@ for index, row in regions_df.iterrows():
     key = row['slack_token']
     db = row['schema_name']
     print('Executing user updates for region ' + region)
-    #os.system("./F3SlackUserLister.py " + db + " " + key)
-    #os.system("./F3SlackChannelLister.py " + db + " " + key)
+    os.system("./F3SlackUserLister.py " + db + " " + key)
+    os.system("./F3SlackChannelLister.py " + db + " " + key)
     #os.system("./BDminer.py " + db + " " + key)
     #os.system("./PAXminer.py " + db + " " + key)
-    os.system("./PAX_BD_Miner.py " + db + " " + key)
+    #os.system("./PAX_BD_Miner.py " + db + " " + key)
     print('----------------- End of Region Update -----------------\n')
 print('\nPAXminer execution complete.')
