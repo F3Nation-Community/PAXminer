@@ -422,6 +422,10 @@ finally:
     mydb.close()
 print('Finished. Beatdowns are up to date.')
 logging.info("BDminer execution complete for region " + db)
+
+if qc == 0:
+    pm_log_text += "<!channel> \n"
+    
 pm_log_text += "End of PAXminer hourly run"
 try:
     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
