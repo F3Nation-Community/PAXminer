@@ -297,13 +297,15 @@ try:
             user_id = row['user_id']
             fngs = row['fngs']
             ao_name = row['ao_name']
+            msg_link = slack.chat_getPermalink(channel=ao_id, message_ts=timestamp)["permalink"]
             val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
             # for Slackblast users, set the user_id as the Q
             appnames = ['slackblast', 'Slackblast']
             if user_name in appnames:
                 user_id = q_user_id
                 user_name = 'Q'
-            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + ">. Here's what happened when I tried to process it: \n"
+            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
+            pm_log_text += "- Processing <" + msg_link + "|this> backblast."
             if msg_date > cutoff_date:
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
