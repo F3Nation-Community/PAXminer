@@ -357,7 +357,7 @@ try:
                     q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
                 if send_q_msg > 0:
                     print(backblast)
-                    slack.chat_postMessage(channel=user_id, text=q_error_text)
+                    slack.chat_postMessage(channel=user_id, unfurl_links=False, text=q_error_text)
 
                 #Add the Q to the bd_attendance table as some Q's are forgetting to add themselves to the PAX line
                 if qc == 1:
@@ -426,7 +426,7 @@ print('Finished. Beatdowns are up to date.')
 logging.info("BDminer execution complete for region " + db)
 pm_log_text += "End of PAXminer hourly run"
 try:
-    slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
+    slack.chat_postMessage(channel='paxminer_logs', unfurl_links=False, text=pm_log_text)
 except:
     print("Slack log message error - not posted")
     pass
