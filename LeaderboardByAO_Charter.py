@@ -35,7 +35,7 @@ key = sys.argv[2]
 slack = WebClient(token=key)
 firstf = sys.argv[4] #designated 1st-f channel for the region
 # Enable rate limited error retries
-rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=7)
 slack.retry_handlers.append(rate_limit_handler)
 
 #Define AWS Database connection criteria
