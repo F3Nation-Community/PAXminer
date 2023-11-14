@@ -25,8 +25,6 @@ warnings.filterwarnings(
 )
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
-MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
-
 # Configure AWS credentials
 config = configparser.ConfigParser();
 config.read('../config/credentials.ini');
@@ -231,8 +229,6 @@ for index, row in f3_df.iterrows():
     text_tmp = re.sub('\*', '', str(text_tmp))
     timestamp = row['timestamp']
     ts_edited = row['ts_edited']
-    if len(str(text_tmp)) <= len(MIN_BACKBLAST):
-        continue
     if re.findall('^Slackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         list_pax()
     elif re.findall('^\*Backblast', text_tmp, re.IGNORECASE | re.MULTILINE):

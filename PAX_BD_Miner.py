@@ -24,7 +24,8 @@ warnings.filterwarnings(
     message="The localize method is no longer necessary, as this time zone supports the fold attribute",
 )
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
-from PAXminer import MIN_BACKBLAST
+
+MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
