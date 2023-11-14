@@ -24,6 +24,7 @@ warnings.filterwarnings(
     message="The localize method is no longer necessary, as this time zone supports the fold attribute",
 )
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
+from PAXminer import MIN_BACKBLAST
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -308,6 +309,8 @@ for index, row in f3_df.iterrows():
     text_tmp = re.sub('\*', '', str(text_tmp))
     user_name = row['user_name']
     user_id = row['user_id']
+    if len(str(text_tmp)) <= len(MIN_BACKBLAST):
+        continue
     if re.findall('^Slackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
         list_pax()
