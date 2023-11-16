@@ -25,6 +25,8 @@ warnings.filterwarnings(
 )
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
+MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
+
 pd.options.mode.chained_assignment = None  # default='warn'
 
 # Configure AWS credentials
@@ -308,6 +310,8 @@ for index, row in f3_df.iterrows():
     text_tmp = re.sub('\*', '', str(text_tmp))
     user_name = row['user_name']
     user_id = row['user_id']
+    if len(str(text_tmp)) <= len(MIN_BACKBLAST):
+        continue
     if re.findall('^Slackblast', text_tmp, re.IGNORECASE | re.MULTILINE):
         bd_info()
         list_pax()
@@ -372,6 +376,7 @@ try:
             user_name = row['user_name']
             user_id = row['user_id']
             fngs = row['fngs']
+            msg_link = slack.chat_getPermalink(channel=ao_id, message_ts=timestamp)["permalink"]
             ao_name = row['ao_name']
             val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
             # for Slackblast users, set the user_id as the Q
@@ -379,7 +384,8 @@ try:
             if user_name in appnames:
                 user_id = q_user_id
                 user_name = 'Q'
-            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + ">. Here's what happened when I tried to process it: \n"
+            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
+            pm_log_text += "- Processing <" + msg_link + "|this> backblast."
             if msg_date > cutoff_date:
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
@@ -433,12 +439,14 @@ try:
                     #print(backblast)
                     slack.chat_postMessage(channel=user_id, text=q_error_text)
 
-                #Add the Q to the bd_attendance table as some Q's are forgetting to add themselves to the PAX line
+                #Add the Q to the bd_attendance table
                 if qc == 1:
                     if q_user_id == 'NA':
                         pass
                     else:
-                        sql2 = "INSERT IGNORE into bd_attendance (user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        timestamp = row['timestamp']
+                        ts_edited = row['ts_edited']
                         user_id = row['q_user_id']
                         ao_id = row['ao_id']
                         date = row['bd_date']
@@ -450,7 +458,9 @@ try:
                     if coq_user_id == 'NA':
                         pass
                     else:
-                        sql2 = "INSERT IGNORE into bd_attendance (user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        timestamp = row['timestamp']
+                        ts_edited = row['ts_edited']
                         user_id = row['coq_user_id']
                         ao_id = row['ao_id']
                         date = row['bd_date']
@@ -498,6 +508,9 @@ finally:
     pass
 print('Finished updating beatdowns - starting PAX attendance...')
 logging.info("Beatdown execution complete for region " + db)
+
+if qc == 0:
+    pm_log_text += "<!channel> \n"
 
 # Now connect to the AWS database and insert PAX records!
 inserts = 0
