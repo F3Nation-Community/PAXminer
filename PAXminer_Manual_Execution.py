@@ -48,8 +48,8 @@ for index, row in regions_df.iterrows():
     key = row['slack_token']
     db = row['schema_name']
     print('Executing user updates for region ' + region)
-    os.system("./F3SlackUserLister.py " + db + " " + key)
-    os.system("./F3SlackChannelLister.py " + db + " " + key)
+    #os.system("./F3SlackUserLister.py " + db + " " + key)
+    #os.system("./F3SlackChannelLister.py " + db + " " + key)
     os.system("./PAX_BD_Miner.py " + db + " " + key)
     print('----------------- End of Region Update -----------------\n')
 print('\nPAXminer execution complete.')

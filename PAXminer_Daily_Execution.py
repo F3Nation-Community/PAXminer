@@ -9,11 +9,15 @@ import pandas as pd
 import pymysql.cursors
 import configparser
 import os
+import sys
 
 # Set the working directory to the directory of the script
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
+
+# Set RegEx range for which regions will be queried. Command line input parameter 1 should be a regex range (e.g. A-M) which will search for all regions starting with A through M.
+region_regex = sys.argv[1]
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
@@ -40,7 +44,7 @@ mydb1 = pymysql.connect(
 # Get list of regions and Slack tokens for PAXminer execution
 try:
     with mydb1.cursor() as cursor:
-        sql = "SELECT * FROM paxminer.regions"
+        sql = "SELECT * from paxminer.regions WHERE active = 1 AND region REGEXP '^[" + region_regex + "]'"
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
@@ -52,8 +56,8 @@ for index, row in regions_df.iterrows():
     key = row['slack_token']
     db = row['schema_name']
     print('Executing user updates for region ' + region)
-    os.system("./F3SlackUserLister.py " + db + " " + key)
-    os.system("./F3SlackChannelLister.py " + db + " " + key)
-    os.system("./BDminer.py " + db + " " + key)
-    os.system("./PAXminer.py " + db + " " + key)
+    #os.system("./F3SlackUserLister.py " + db + " " + key)
+    #os.system("./F3SlackChannelLister.py " + db + " " + key)
+    #os.system("./BDminer.py " + db + " " + key)
+    #os.system("./PAXminer.py " + db + " " + key)
     print('----------------- End of Region Update -----------------\n')
