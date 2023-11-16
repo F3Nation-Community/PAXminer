@@ -444,13 +444,13 @@ try:
                     if q_user_id == 'NA':
                         pass
                     else:
-                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s,%s,%s)"
                         timestamp = row['timestamp']
                         ts_edited = row['ts_edited']
                         user_id = row['q_user_id']
                         ao_id = row['ao_id']
                         date = row['bd_date']
-                        val2 = (user_id, ao_id, date, user_id)
+                        val2 = (timestamp, ts_edited, user_id, ao_id, date, user_id)
                         cursor.execute(sql2, val2)
                         mydb.commit()
                         if cursor.rowcount == 1:
@@ -458,13 +458,13 @@ try:
                     if coq_user_id == 'NA':
                         pass
                     else:
-                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s)"
+                        sql2 = "INSERT IGNORE into bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s,%s,%s)"
                         timestamp = row['timestamp']
                         ts_edited = row['ts_edited']
                         user_id = row['coq_user_id']
                         ao_id = row['ao_id']
                         date = row['bd_date']
-                        val2 = (user_id, ao_id, date, user_id)
+                        val2 = (timestamp, ts_edited, user_id, ao_id, date, user_id)
                         cursor.execute(sql2, val2)
                         mydb.commit()
                         if cursor.rowcount == 1:
