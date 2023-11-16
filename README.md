@@ -23,8 +23,7 @@ For instructions on getting your F3 region up and running with PAXminer, start h
 ## Files
 - *F3SlackChannelLister.py* : Pulls all channel information from the Slack workspace and inserts/updates the info in the database. Channel info is required for the rest of the processes.
 - *F3SlackUserLister.py* : Python script that pulls all PAX user info from Slack and inserts it into the database. User info is required for the rest of the processes.
-- *BDminer.py* : Python script that pulls Beatdown specific information and sends to the database (date, AO, Q, Co-Q, Count, FNGs, etc)
-- *PAXminer.py* : Python script that finds all backblasts from AO channels (including rucking, blackops) and parses them for all of the PAX in attendance. Inserts all attendance records into the database.
+- *PAX_BD_Miner.py* : Python script that pulls Beatdown specific information and sends to the database (date, AO, Q, Co-Q, Count, FNGs, PAX, etc). Updates both beatdowns and bd_attendance records.
 - *PAXminer_Daily_Execution.py* : Python script that is used for automating the daily backblast mining and data capture. This process first pulls a list of all F3 regions using PAXminer, and then runs the above scripts for each of their Slack environments. The resulting data gets put into each region's database tables.
 - *PAXcharter.py* : Python script that creates individual bar charts for every user who has attended a beatdown, showing # of posts by AO by month. Sends charts as direct messages to each user in Slack. Intended to run monthly.
 - *Qcharter.py* : Python script that creates histograms for each AO that shows who has Q'd and how many times by month. Sends charts as messages to each AO channel in Slack. Intended to run monthly.
