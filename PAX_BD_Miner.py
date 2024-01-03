@@ -385,7 +385,7 @@ try:
                 user_id = q_user_id
                 user_name = 'Q'
             q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
-            pm_log_text += "- Processing <" + msg_link + "|this> backblast."
+            #pm_log_text += "- Processing <" + msg_link + "|this> backblast."
             if msg_date > cutoff_date:
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
@@ -508,9 +508,6 @@ finally:
     pass
 print('Finished updating beatdowns - starting PAX attendance...')
 logging.info("Beatdown execution complete for region " + db)
-
-if qc == 0:
-    pm_log_text += "<!channel> \n"
 
 # Now connect to the AWS database and insert PAX records!
 inserts = 0

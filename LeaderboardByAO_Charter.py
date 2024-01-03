@@ -7,6 +7,8 @@ The graph then is sent to each AO in a Slack message.
 '''
 
 from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+import time
 import pandas as pd
 import pymysql.cursors
 import datetime
@@ -61,7 +63,7 @@ yearnum = d.strftime("%Y")
 
 try:
     with mydb.cursor() as cursor:
-        sql = "SELECT ao FROM aos WHERE backblast = 1"
+        sql = "SELECT ao FROM aos WHERE backblast = 1 and archived = 0"
         cursor.execute(sql)
         aos = cursor.fetchall()
         aos_df = pd.DataFrame(aos, columns={'ao'})
@@ -93,18 +95,26 @@ for ao in aos_df['ao']:
         print('Now pulling all posting records for', ao, '... Stand by...')
 
     if not posts_df.empty:
-        try:
-            ax = posts_df.plot.bar(x='PAX', color={"Posts" : "orange"})
-            plt.title("Monthly Leaderboard - " + thismonthnamelong + ", " + yearnum)
-            plt.xlabel("")
-            plt.ylabel("# Posts for " + thismonthname + ", " + yearnum)
-            plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
-            print('Monthly Leaderboard Graph created for AO', ao, 'Sending to Slack now... hang tight!')
-            #slack.chat.post_message(ao, 'Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.")
-            slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
-            total_graphs = total_graphs + 1
-        finally:
-            print('Total graphs made:', total_graphs)
+        ax = posts_df.plot.bar(x='PAX', color={"Posts": "orange"})
+        plt.title("Monthly Leaderboard - " + thismonthnamelong + ", " + yearnum)
+        plt.xlabel("")
+        plt.ylabel("# Posts for " + thismonthname + ", " + yearnum)
+        plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+        print('Monthly Leaderboard Graph created for AO', ao, 'Sending to Slack now... hang tight!')
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            try:
+                response = slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
+                total_graphs = total_graphs + 1
+                break #exit the loop if upload is successful
+            except SlackApiError as e:
+                if e.response.status_code == 429:
+                    delay = int(e.response.headers['Retry-After'])
+                    print(f"Rate limited. Retrying in {delay} seconds")
+                    time.sleep(delay)
+                else:
+                    # other errors
+                    raise e
 
     try:
         with mydb.cursor() as cursor:
@@ -122,14 +132,25 @@ for ao in aos_df['ao']:
     finally:
         print('Now pulling all posting records for', ao, '... Stand by...')
     if not posts_df.empty:
-        try:
-            ax = posts_df.plot.bar(x='PAX', color={"Posts" : "green"})
-            plt.title("Year to Date Leaderboard - " + yearnum)
-            plt.xlabel("")
-            plt.ylabel("# Posts for " + yearnum + " - Year To Date")
-            plt.savefig('../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
-            print('YTD Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
-            slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
-            total_graphs = total_graphs + 1
-        finally:
-            print('Total graphs made:', total_graphs)
+        ax = posts_df.plot.bar(x='PAX', color={"Posts": "green"})
+        plt.title("Year to Date Leaderboard - " + yearnum)
+        plt.xlabel("")
+        plt.ylabel("# Posts for " + yearnum + " - Year To Date")
+        plt.savefig('../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
+        print('YTD Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
+        max_attempts = 5
+        for attempt in range(max_attempts):
+            try:
+                slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
+                total_graphs = total_graphs + 1
+                break # exit the loop if upload is successful
+            except SlackApiError as e:
+                if e.response.status_code == 429:
+                    delay = int(e.response.headers['Retry-After'])
+                    print(f"Rate limited. Retrying in {delay} seconds")
+                    time.sleep(delay)
+                else:
+                    # other errors
+                    raise e
+# After all AOs have been processed, print the total number of graphs made
+print('Total graphs made:', total_graphs)
