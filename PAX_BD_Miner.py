@@ -305,7 +305,7 @@ def insert_beatdown_attendance(dbConn, beatdown_attendance, database_action, bea
                     dbConn.commit()
 
             for index, row in beatdown_attendance.iterrows():
-                sql11 = "INSERT IGNORE INTO bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s, %s, %s)"
+                sql11 = "INSERT INTO bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s, %s, %s)"
                 timestamp = row['timestamp']
                 ts_edited = row['ts_edited']
                 user_id_tmp = row['user_id']
@@ -326,11 +326,16 @@ def insert_beatdown_attendance(dbConn, beatdown_attendance, database_action, bea
                         print('Backblast error on Date - AO:', ao_tmp, 'Date:', date_tmp, 'Posted By:', user_id_tmp)
                     else:
                         if q_user_id != 'NA':
-                            cursor.execute(sql11, val)
-                            dbConn.commit()
-                            if cursor.rowcount > 0:
-                                print(cursor.rowcount, "record inserted for", user_id_tmp, "at", ao_tmp, "on", date_tmp, "with Q =", q_user_id)
-                                inserts = inserts + 1
+                            try :
+                                cursor.execute(sql11, val)
+                                dbConn.commit()
+                                if cursor.rowcount > 0:
+                                    print(cursor.rowcount, "record inserted for", user_id_tmp, "at", ao_tmp, "on", date_tmp, "with Q =", q_user_id)
+                                    inserts = inserts + 1
+                            except Exception as error:
+                                print("An error occurred writing to the datastore", error)
+                                logging.error("An error occured writing to the datastore: %s", error)
+                            
     finally:
         return inserts
 
