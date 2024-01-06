@@ -52,7 +52,7 @@ yearnum = d.strftime("%Y")
 
 try:
     with mydb.cursor() as cursor:
-        sql = "SELECT ao FROM aos WHERE backblast = 1"
+        sql = "SELECT ao FROM aos WHERE backblast = 1 and archived = 0"
         cursor.execute(sql)
         aos = cursor.fetchall()
         aos_df = pd.DataFrame(aos, columns={'ao'})

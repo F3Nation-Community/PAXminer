@@ -402,7 +402,7 @@ try:
                 user_id = q_user_id
                 user_name = 'Q'
             q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
-            pm_log_text += "- Processing <" + msg_link + "|this> backblast."
+            # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
 
             if database_action == DbAction.IGNORE:
                 logging.debug("Encountered a bblast already recorded and has not been modified. Skipping import")
@@ -530,14 +530,7 @@ finally:
     pass
 logging.info("Beatdown execution complete for region " + db)
 
-if qc == 0:
-    pm_log_text += "<!channel> \n"
-
-    mydb.close()
-    mydb.close()
-logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for region %s", inserts, db)
 mydb.close()
-logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for region %s", inserts, db)
 
 pm_log_text += "End of PAXminer hourly run"
 try:
