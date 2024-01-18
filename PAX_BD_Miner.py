@@ -294,48 +294,48 @@ def containsBackblastKeyword(potential_backblast):
 # Taking a dataframe of beatdown attendance, inserts these records into the database.
 # If the database action is 'UPDATE', we clear out all the records that were associated with this beatdown previous to inserting.
 # This prevents extra entries, in the scenario where 1) PAX that were mistakenly added, or 2) if one of the compound keys changed ( such as ao or q )
-def insert_beatdown_attendance(dbConn, beatdown_attendance, database_action, beatdownkey):
+def insert_beatdown_attendance(dbConn, cursor, beatdown_attendance, database_action, beatdownkey):
     inserts = 0
     try:
-        with dbConn.cursor() as cursor:
-            if database_action == DbAction.Update:
-                if beatdownkey:
-                    deleteSQL = "DELETE FROM bd_attendance WHERE timestamp = %s and timestamp is not NULL"
-                    cursor.execute(deleteSQL, beatdownkey)
-                    dbConn.commit()
+        if database_action == DbAction.UPDATE:
+            if beatdownkey:
+                deleteSQL = "DELETE FROM bd_attendance WHERE timestamp = %s and timestamp is not NULL"
+                cursor.execute(deleteSQL, beatdownkey)
+                dbConn.commit()
 
-            for index, row in beatdown_attendance.iterrows():
-                sql11 = "INSERT INTO bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s, %s, %s)"
-                timestamp = row['timestamp']
-                ts_edited = row['ts_edited']
-                user_id_tmp = row['user_id']
-                msg_date = row['msg_date']
-                ao_tmp = row['ao']
-                date_tmp = row['bd_date']
-                q_user_id = row['q_user_id']
-                coq_user_id = row['coq_user_id']
+        for index, row in beatdown_attendance.iterrows():
+            sql11 = "INSERT INTO bd_attendance (timestamp, ts_edited, user_id, ao_id, date, q_user_id) VALUES (%s, %s, %s, %s, %s, %s)"
+            timestamp = row['timestamp']
+            ts_edited = row['ts_edited']
+            user_id_tmp = row['user_id']
+            msg_date = row['msg_date']
+            ao_tmp = row['ao']
+            date_tmp = row['bd_date']
+            q_user_id = row['q_user_id']
+            coq_user_id = row['coq_user_id']
 
-                # For the user who is also the CO-Q, list their record in the database as them as the Q.
-                if user_id_tmp == coq_user_id:
-                    val = (timestamp, ts_edited, user_id_tmp, ao_tmp, date_tmp, coq_user_id)
-                else :
-                    val = (timestamp, ts_edited, user_id_tmp, ao_tmp, date_tmp, q_user_id)
-                
-                if msg_date > cutoff_date:
-                    if date_tmp == '2099-12-31':
-                        print('Backblast error on Date - AO:', ao_tmp, 'Date:', date_tmp, 'Posted By:', user_id_tmp)
-                    else:
-                        if q_user_id != 'NA':
-                            try :
-                                cursor.execute(sql11, val)
-                                dbConn.commit()
-                                if cursor.rowcount > 0:
-                                    print(cursor.rowcount, "record inserted for", user_id_tmp, "at", ao_tmp, "on", date_tmp, "with Q =", q_user_id)
-                                    inserts = inserts + 1
-                            except Exception as error:
-                                print("An error occurred writing to the datastore", error)
-                                logging.error("An error occured writing to the datastore: %s", error)
-                            
+            # For the user who is also the CO-Q, list their record in the database as them as the Q.
+            if user_id_tmp == coq_user_id:
+                val = (timestamp, ts_edited, user_id_tmp, ao_tmp, date_tmp, coq_user_id)
+            else :
+                val = (timestamp, ts_edited, user_id_tmp, ao_tmp, date_tmp, q_user_id)
+            
+            if msg_date > cutoff_date:
+                if date_tmp == '2099-12-31':
+                    print('Backblast error on Date - AO:', ao_tmp, 'Date:', date_tmp, 'Posted By:', user_id_tmp)
+                else:
+                    if q_user_id != 'NA':
+                        try :
+                            cursor.execute(sql11, val)
+                            if cursor.rowcount > 0:
+                                print(cursor.rowcount, "record inserted for", user_id_tmp, "at", ao_tmp, "on", date_tmp, "with Q =", q_user_id)
+                                inserts = inserts + 1
+                        except Exception as error:
+                            print("An error occurred writing to the datastore", error)
+                            logging.error("An error occured writing to the datastore: %s", error)
+    except Exception as error:
+        print("An error occurred inserting_beatdown_attendance", error)
+        logging.error("An error occured inserting_beatdown_attendance: %s", error)                        
     finally:
         return inserts
 
@@ -376,6 +376,7 @@ try:
                 UPDATE beatdowns 
                 SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s
                 WHERE timestamp=%s
+                LIMIT 1
             """
             insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
             
@@ -481,7 +482,8 @@ try:
                         pax_df['msg_date'] = msg_date
                         pax_df['q_user_id'] = q_user_id
                         pax_df["coq_user_id"] = coq_user_id
-                        inserts = insert_beatdown_attendance(mydb, pax_df, database_action)
+                        inserts = insert_beatdown_attendance(mydb, cursor, pax_df, database_action, timestamp)
+                        mydb.commit()
 
                         logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for AO: %s, Date: %s", inserts, ao_id, bd_date)
                     else:
