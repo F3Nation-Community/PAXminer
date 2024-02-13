@@ -461,10 +461,17 @@ try:
                     print('Co-Q', coq_user_id)
                     print('Pax Count:',pax_count)
                     print('fngs:', fngs)
-                    pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
-                    if user_id != 'APP':
-                        q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
-                        send_q_msg = 1
+                    if database_action == DbAction.UPDATE :
+                        pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                        if user_id != 'APP':
+                            q_error_text += " - Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
+                            send_q_msg = 1
+                    else:
+                        pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                        if user_id != 'APP':
+                            q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
+                            send_q_msg = 1
+                    
                     print("Slack message sent to Q.")
                     logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
 
