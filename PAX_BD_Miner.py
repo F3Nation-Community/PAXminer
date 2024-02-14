@@ -495,14 +495,20 @@ try:
                         logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for AO: %s, Date: %s", inserts, ao_id, bd_date)
                     else:
                         logging.info("No PAX Found in Attendance for AO: %s, Date: %s", ao_id, bd_date)
-
-                if send_q_msg == 2:
-                    q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
-                if send_q_msg > 0:
-                    slack.chat_postMessage(channel=user_id, text=q_error_text)
             else:
                 pass
+            
+            if send_q_msg == 2:
+                q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
 
+                # Only send the message at 3pm each day or if the backblast was posted in the last hour
+                if today.hour == 14 or (float( ts_edited or timestamp )) >= ( current_ts - 3600) :
+                    send_q_msg = 2
+                else:
+                    send_q_msg = 0
+                    
+            if send_q_msg > 0:
+                slack.chat_postMessage(channel=user_id, text=q_error_text)
 
         sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
         cursor.execute(sql3)
