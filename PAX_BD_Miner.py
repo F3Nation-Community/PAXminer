@@ -232,7 +232,7 @@ def bd_info():
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
         dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
-        dateline = dateparser.parse(dateline) #dateparser is a flexible date module that can understand many different date formats
+        dateline = dateparser.parse(dateline, settings={'STRICT_PARSING': True}) #dateparser is a flexible date module that can understand many different date formats
         if dateline is None:
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
         else:
@@ -290,6 +290,18 @@ def containsBackblastKeyword(potential_backblast):
         re.findall('^Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE)
     )
 
+def isValidDate(date):
+    lookback_valid_date = (today - timedelta(days = 30 )).strftime('%Y-%m-%d')
+    forward_valid_date = (today + timedelta(days = 2)).strftime('%Y-%m-%d')
+
+    if date == '2099-12-31':
+        return False
+    elif date < lookback_valid_date:
+        return False
+    elif date > forward_valid_date:
+        return False
+    else :
+        return True
 
 # Taking a dataframe of beatdown attendance, inserts these records into the database.
 # If the database action is 'UPDATE', we clear out all the records that were associated with this beatdown previous to inserting.
@@ -430,13 +442,12 @@ try:
             else:
                 pass
         
-            # TODO add logic around which bd_dates are valid in this field. Should we allow the future? Should we allow a month, year in the past?
-            if bd_date == '2099-12-31':
+            if not isValidDate(bd_date):
                 logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
                 print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                 pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
                 if user_id != 'APP':
-                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. \n"
+                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future or a date with the time appended.\n"
                     send_q_msg = 2
                 qc = 0
             
