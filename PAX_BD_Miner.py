@@ -232,7 +232,7 @@ def bd_info():
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
         dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
-        dateline = dateparser.parse(dateline, settings={'STRICT_PARSING': True}) #dateparser is a flexible date module that can understand many different date formats
+        dateline = dateparser.parse(dateline) #dateparser is a flexible date module that can understand many different date formats
         if dateline is None:
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
         else:
