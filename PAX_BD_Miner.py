@@ -290,6 +290,18 @@ def containsBackblastKeyword(potential_backblast):
         re.findall('^Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE)
     )
 
+def isValidDate(date):
+    lookback_valid_date = (today - timedelta(days = 30 )).strftime('%Y-%m-%d')
+    forward_valid_date = (today + timedelta(days = 2)).strftime('%Y-%m-%d')
+
+    if date == '2099-12-31':
+        return False
+    elif date < lookback_valid_date:
+        return False
+    elif date > forward_valid_date:
+        return False
+    else :
+        return True
 
 # Taking a dataframe of beatdown attendance, inserts these records into the database.
 # If the database action is 'UPDATE', we clear out all the records that were associated with this beatdown previous to inserting.
@@ -430,13 +442,12 @@ try:
             else:
                 pass
         
-            # TODO add logic around which bd_dates are valid in this field. Should we allow the future? Should we allow a month, year in the past?
-            if bd_date == '2099-12-31':
+            if not isValidDate(bd_date):
                 logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
                 print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                 pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
                 if user_id != 'APP':
-                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. \n"
+                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future or a date with the time appended.\n"
                     send_q_msg = 2
                 qc = 0
             
@@ -461,10 +472,17 @@ try:
                     print('Co-Q', coq_user_id)
                     print('Pax Count:',pax_count)
                     print('fngs:', fngs)
-                    pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
-                    if user_id != 'APP':
-                        q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
-                        send_q_msg = 1
+                    if database_action == DbAction.UPDATE :
+                        pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                        if user_id != 'APP':
+                            q_error_text += " - Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
+                            send_q_msg = 1
+                    else:
+                        pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                        if user_id != 'APP':
+                            q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
+                            send_q_msg = 1
+                    
                     print("Slack message sent to Q.")
                     logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
 
@@ -488,14 +506,20 @@ try:
                         logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for AO: %s, Date: %s", inserts, ao_id, bd_date)
                     else:
                         logging.info("No PAX Found in Attendance for AO: %s, Date: %s", ao_id, bd_date)
-
-                if send_q_msg == 2:
-                    q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
-                if send_q_msg > 0:
-                    slack.chat_postMessage(channel=user_id, text=q_error_text)
             else:
                 pass
+            
+            if send_q_msg == 2:
+                q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
 
+                # Only send the message at 3pm each day or if the backblast was posted in the last hour
+                if today.hour == 14 or (float( ts_edited or timestamp )) >= ( current_ts - 3600) :
+                    send_q_msg = 2
+                else:
+                    send_q_msg = 0
+                    
+            if send_q_msg > 0:
+                slack.chat_postMessage(channel=user_id, text=q_error_text)
 
         sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
         cursor.execute(sql3)
