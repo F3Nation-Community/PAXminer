@@ -270,16 +270,6 @@ def list_pax(beatdown_text):
     # Remove duplicates
     return list(set(pax))
 
-# Checks if the message qualifies as a backblast.
-# Must meet the required length of a minimum backblast.
-# Must contain the backblast keyword.
-# Must Contain one other backblast collection field.
-def isBackblastMessage(potential_backblast):
-    return ( len(str(text_tmp)) > len(MIN_BACKBLAST)) and containsBackblastKeyword(potential_backblast=potential_backblast) and (
-        ("PAX:" in potential_backblast) or ("Q:" in potential_backblast) or ("AO:" in potential_backblast) or ("DATE:" in potential_backblast)
-    )
-
-
 # Searches the potential backblast and returns a truthy value if it matches one of the included regexes.
 def containsBackblastKeyword(potential_backblast): 
     return (
