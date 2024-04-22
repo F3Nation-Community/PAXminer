@@ -270,6 +270,16 @@ def list_pax(beatdown_text):
     # Remove duplicates
     return list(set(pax))
 
+# Checks if the message qualifies as a backblast.
+# Must meet the required length of a minimum backblast.
+# Must contain the backblast keyword.
+# Must Contain one other backblast collection field.
+def isBackblastMessage(potential_backblast):
+    return ( len(str(text_tmp)) > len(MIN_BACKBLAST)) and containsBackblastKeyword(potential_backblast=potential_backblast) and (
+        ("PAX:" in potential_backblast) or ("Q:" in potential_backblast) or ("AO:" in potential_backblast) or ("DATE:" in potential_backblast)
+    )
+
+
 # Searches the potential backblast and returns a truthy value if it matches one of the included regexes.
 def containsBackblastKeyword(potential_backblast): 
     return (
@@ -351,6 +361,12 @@ def insert_beatdown_attendance(dbConn, cursor, beatdown_attendance, database_act
     finally:
         return inserts
 
+def safe_cast(val, to_type, default=None):
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
+    
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
@@ -513,10 +529,14 @@ try:
                 q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
 
                 # Only send the message at 3pm each day or if the backblast was posted in the last hour
-                if today.hour == 14 or (float( ts_edited or timestamp )) >= ( current_ts - 3600) :
-                    send_q_msg = 2
-                else:
-                    send_q_msg = 0
+                try:
+                    if today.hour == 15 or  ( safe_cast(ts_edited, float) or safe_cast(timestamp, float) >= ( current_ts - 3600)):
+                        send_q_msg = 2
+                    else:
+                        send_q_msg = 0
+                except Exception as error:
+                    print("An error occurred determining to send an error message", error)
+                    logging.error("An error occured determining to send an error message: %s", error)
                     
             if send_q_msg > 0:
                 slack.chat_postMessage(channel=user_id, text=q_error_text)
