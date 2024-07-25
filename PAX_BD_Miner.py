@@ -117,6 +117,9 @@ try:
 finally:
     print('Pulling current beatdown records...')
 
+users_dict = users_df[["user_id", "user_name"]].set_index("user_id").to_dict()["user_name"]
+aos_dict = channels_df[["channel_id", "ao"]].set_index("channel_id").to_dict()["ao"]
+
 # Retrieve backblast entries from regional database for comparison to identify new or updated posts
 try:
     previously_saved_beatdowns = retrievePreviousBackblasts(mydb, cutoff_ts)
@@ -246,8 +249,12 @@ def bd_info():
         ao_name = ao_name.strip()
     else:
         ao_name = 'Unknown'
+
+    #Replace users with usernames.
+    #Replace AOs with AOs.
+    parsed_backblast = parse_backblast(text_tmp, users_dict, aos_dict)
     global bd_df
-    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
+    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
     return new_row
 
 # Looking within a backblast, retrieves a list of pax
@@ -269,6 +276,42 @@ def list_pax(beatdown_text):
 
     # Remove duplicates
     return list(set(pax))
+
+def parse_backblast(backblast: str, users_dict, aos_dict) -> str:
+    """Replaces user and channel IDs in backblast with readable names
+
+    Args:
+        backblast (str): backblast text
+        users_dict (Dict[str, str]): user ID to user name mapping
+        aos_dict (Dict[str, str]): channel ID to ao name mapping
+
+    Returns:
+        str: formatted backblast
+    """
+
+    # Build user ID list
+    pattern = "<@([A-Za-z0-9-_']+)>"
+    user_ids = re.findall(pattern, backblast)
+
+    # Replace user IDs with user names
+    user_names = [users_dict.get(x, x) for x in user_ids]
+    user_names = [x.replace("{", "").replace("}", "") for x in user_names]
+    backblast = backblast.replace("{", "").replace("}", "")
+    backblast2 = re.sub(pattern, "{}", backblast).format(*user_names)
+
+    # remove channel id tags and <> from channel names
+    # ex: <#C01HU2D6S77|ao-alamo-cranks-comz> -> ao-alamo-cranks-comz
+    pattern = "<#([A-Za-z0-9-_'|]+)>"
+    channel_ids = re.findall(pattern, backblast2)
+    if len(channel_ids) > 0:
+        try:
+            channel_names = [x.split("|")[1].replace(">", "") for x in channel_ids]
+        except IndexError:
+            channel_names = [aos_dict.get(x, x) for x in channel_ids]
+            channel_names = [x.replace("<", "").replace(">", "") for x in channel_names]
+        backblast2 = re.sub(pattern, "{}", backblast2).format(*channel_names)
+
+    return backblast2
 
 # Searches the potential backblast and returns a truthy value if it matches one of the included regexes.
 def containsBackblastKeyword(potential_backblast): 
@@ -392,11 +435,11 @@ try:
             
             update_sql = """
                 UPDATE beatdowns 
-                SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s
+                SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s, backblast_parsed=%s
                 WHERE timestamp=%s
                 LIMIT 1
             """
-            insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             
             timestamp = row['timestamp']
             ts_edited = row['ts_edited']
@@ -413,8 +456,9 @@ try:
             msg_link = slack.chat_getPermalink(channel=ao_id, message_ts=timestamp)["permalink"]
             ao_name = row['ao_name']
             database_action = row["database_action"]
+            backblast_parsed = row['backblast_parsed']
 
-            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
+            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed)
             # for Slackblast users, set the user_id as the Q
             appnames = ['slackblast', 'Slackblast']
             if user_name in appnames:
