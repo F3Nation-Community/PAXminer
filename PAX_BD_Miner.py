@@ -253,9 +253,8 @@ def bd_info():
     #Replace users with usernames.
     #Replace AOs with AOs.
     parsed_backblast = parse_backblast(text_tmp, users_dict, aos_dict)
-    # print(parsed_backblast)
     global bd_df
-    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
+    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
     return new_row
 
 # Looking within a backblast, retrieves a list of pax
@@ -436,11 +435,11 @@ try:
             
             update_sql = """
                 UPDATE beatdowns 
-                SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s
+                SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s, backblast_parsed=%s
                 WHERE timestamp=%s
                 LIMIT 1
             """
-            insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             
             timestamp = row['timestamp']
             ts_edited = row['ts_edited']
@@ -457,8 +456,9 @@ try:
             msg_link = slack.chat_getPermalink(channel=ao_id, message_ts=timestamp)["permalink"]
             ao_name = row['ao_name']
             database_action = row["database_action"]
+            backblast_parsed = row['backblast_parsed']
 
-            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs)
+            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed)
             # for Slackblast users, set the user_id as the Q
             appnames = ['slackblast', 'Slackblast']
             if user_name in appnames:
