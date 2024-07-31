@@ -127,7 +127,8 @@ finally:
     print('Looking for new backblasts from Slack...')
 
 # Get all channel conversation
-messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
+# messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
+messages_df = pd.DataFrame([], columns={'user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id'}) #creates an empty dataframe to append to
 for id in channels_df['channel_id']:
     data = ''
     pages = 1
