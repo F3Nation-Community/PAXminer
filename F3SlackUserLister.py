@@ -48,8 +48,8 @@ while True:
     next_cursor = response_metadata.get('next_cursor')
     users = users_response.data['members']
     users_df = pd.json_normalize(users)
-    users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email']]
-    users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email'})
+    users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot']]
+    users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email', 'is_bot': 'app'})
     # Update any null user_names with the real_name values
     for index, row in users_df.iterrows():
         un_tmp = row['user_name']
@@ -63,13 +63,14 @@ while True:
     try:
         with mydb.cursor() as cursor:
             for index, row in users_df.iterrows():
-                sql = "INSERT INTO users (user_id, user_name, real_name, phone, email) VALUES (%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_name=%s, real_name=%s, phone=%s, email=%s"
+                sql = "INSERT INTO users (user_id, user_name, real_name, phone, email, app) VALUES (%s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_name=%s, real_name=%s, phone=%s, email=%s, app=%s"
                 user_id_tmp = row['user_id']
                 user_name_tmp = row['user_name']
                 real_name_tmp = row['real_name']
                 phone_tmp = row['phone']
                 email_tmp = row['email']
-                val = (user_id_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp)
+                app_tmp = row['app']
+                val = (user_id_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, app_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, app_tmp)
                 cursor.execute(sql, val)
                 mydb.commit()
                 result = cursor.rowcount
