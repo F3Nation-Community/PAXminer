@@ -84,7 +84,10 @@ for ao in aos_df['ao']:
             month_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
                            "October", "November", "December"]
             try:
-                melted_df = pd.melt(bd_tmp_df, id_vars=['Month'], value_vars=['Q', 'CoQ'], var_name='Role', value_name='Q')
+                melted_df = pd.melt(bd_tmp_df, id_vars=['Month'], value_vars=['Q', 'CoQ'], var_name='Role', value_name='TempQ')
+                melted_df = melted_df.dropna()
+                # Rename 'TempQ' to 'Q'
+                melted_df = melted_df.rename(columns={'TempQ': 'Q'})
                 melted_df.groupby(['Q', 'Month']).size().unstack().sort_values(['Q'], ascending=True).plot(kind='bar')
                 plt.title('Number of Qs by individual at ' + ao + ' for ' + thismonthnamelong + ', ' + yearnum)
                 #plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
@@ -96,10 +99,11 @@ for ao in aos_df['ao']:
                 #plt.ylabel("# Q Counts for " + thismonthname + ", " + yearnum)
                 plt.savefig('../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
                 print('Q Graph created for AO', ao, 'Sending to Slack now... hang tight!')
-                #ao2 = 'U0187M4NWG4'  # Use this for testing to send all charts to a specific user
-                #slack.chat.post_message(ao, 'Hey ' + ao + '! Here is a look at who Qd last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
-                slack.files_upload(channels=ao, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg')
+                ao_override = "C9999999999"
+                slack.chat_postMessage(channel=ao, text='Hey ' + ao + '! Here is a look at who Qd last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
+                slack.files_upload_v2(channel=ao, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', title="Test upload")
                 total_graphs = total_graphs + 1
+                plt.close()
             except:
                 print('An Error Occurred in Sending')
             finally:
@@ -126,7 +130,11 @@ try:
             bd_tmp_df2['Month'] = month
             bd_tmp_df2['Day'] = day
             bd_tmp_df2['Year'] = year
-            melted_df = pd.melt(bd_tmp_df, id_vars=['AO'], value_vars=['Q', 'CoQ'], var_name='Role', value_name='Q')
+            melted_df = pd.melt(bd_tmp_df2, id_vars=['AO'], value_vars=['Q', 'CoQ'], var_name='Role', value_name='TempQ')
+            melted_df = melted_df.dropna()
+            
+            # Rename 'TempQ' to 'Q'
+            melted_df = melted_df.rename(columns={'TempQ': 'Q'})
             melted_df.groupby(['Q', 'AO']).size().unstack().plot(kind='bar', stacked = True, figsize=(25,4))
             #bd_tmp_df2.groupby(['Q'],['AO']).sum().size().plot(kind='bar', stacked=True, sort_columns=False, figsize=(8,4))
             plt.title('Number of Qs by individual across all AOs for ' + thismonthnamelong + ', ' + yearnum)
@@ -135,8 +143,9 @@ try:
             plt.savefig('../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg',
                         bbox_inches='tight')  # save the figure to a file
             print('Q Graph created for ', region, 'Sending to Slack now... hang tight!')
+            # firstf_override = "C99999999"
             slack.conversations_join(channel=firstf)
-            slack.files_upload(channels=firstf, initial_comment='Hey ' + region + '! Here is a look at who has been stepping up to Q across all AOs for the month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg')
+            slack.files_upload_v2(channel=firstf, initial_comment='Hey ' + region + '! Here is a look at who has been stepping up to Q across all AOs for the month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg')
             total_graphs = total_graphs + 1
 finally:
     print('Total Q summary graphs made:', total_graphs)
