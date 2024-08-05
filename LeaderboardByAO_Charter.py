@@ -104,7 +104,7 @@ for ao in aos_df['ao']:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                response = slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
+                response = slack.files_upload_v2(channel=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
                 total_graphs = total_graphs + 1
                 break #exit the loop if upload is successful
             except SlackApiError as e:
@@ -141,7 +141,7 @@ for ao in aos_df['ao']:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
+                slack.files_upload_v2(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channel=ao)
                 total_graphs = total_graphs + 1
                 break # exit the loop if upload is successful
             except SlackApiError as e:
