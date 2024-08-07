@@ -52,17 +52,20 @@ yearnum = d.strftime("%Y")
 
 try:
     with mydb.cursor() as cursor:
-        sql = "SELECT ao FROM aos WHERE backblast = 1 and archived = 0"
+        sql = "SELECT ao, channel_id FROM aos WHERE backblast = 1 and archived = 0"
         cursor.execute(sql)
         aos = cursor.fetchall()
-        aos_df = pd.DataFrame(aos, columns={'ao'})
+        aos_df = pd.DataFrame(aos, columns={'ao', 'channel_id'})
 finally:
     print('Now pulling all beatdown records... Stand by...')
 
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
 
 # Query AWS by for beatdown history
-for ao in aos_df['ao']:
+# for ao in aos_df['ao']:
+for index, row in aos_df.iterrows():
+    ao = row['ao']
+    channel_id = row['channel_id']    
     month = []
     day = []
     year = []
@@ -99,12 +102,13 @@ for ao in aos_df['ao']:
                 #plt.ylabel("# Q Counts for " + thismonthname + ", " + yearnum)
                 plt.savefig('../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
                 print('Q Graph created for AO', ao, 'Sending to Slack now... hang tight!')
-                ao_override = "C9999999999"
-                slack.chat_postMessage(channel=ao, text='Hey ' + ao + '! Here is a look at who Qd last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
-                slack.files_upload_v2(channel=ao, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', title="Test upload")
+                # ao_override = "C07FFAG02LS"
+                slack.chat_postMessage(channel=channel_id, text='Hey ' + ao + '! Here is a look at who Qd last month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!')
+                slack.files_upload_v2(channel=channel_id, initial_comment='Hey ' + ao + '! Here is a look at who has been stepping up to Q at this AO. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + ao + "_" + thismonthname + yearnum + '.jpg', title="Test upload")
                 total_graphs = total_graphs + 1
                 plt.close()
-            except:
+            except Exception as e:
+                print(e)
                 print('An Error Occurred in Sending')
             finally:
                 print('Message Sent')
@@ -143,7 +147,7 @@ try:
             plt.savefig('../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg',
                         bbox_inches='tight')  # save the figure to a file
             print('Q Graph created for ', region, 'Sending to Slack now... hang tight!')
-            # firstf_override = "C99999999"
+            # firstf_override = "C07FFAG02LS"
             slack.conversations_join(channel=firstf)
             slack.files_upload_v2(channel=firstf, initial_comment='Hey ' + region + '! Here is a look at who has been stepping up to Q across all AOs for the month. Is your name on this list? Remember Core Principle #4 - F3 is peer led on a rotating fashion. Exercise your leadership muscles. Sign up to Q!', file='../plots/' + db + '/Q_Counts_' + db + "_" + thismonthname + yearnum + '.jpg')
             total_graphs = total_graphs + 1
