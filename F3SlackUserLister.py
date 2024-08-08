@@ -8,7 +8,6 @@ Usage: F3SlackUserLister.py [db_name] [slack_token]
 
 '''
 
-from slacker import Slacker
 import pandas as pd
 import pymysql.cursors
 import configparser
@@ -51,12 +50,6 @@ while True:
     users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot']]
     users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email', 'is_bot': 'app'})
     # Update any null user_names with the real_name values
-    for index, row in users_df.iterrows():
-        un_tmp = row['user_name']
-        rn_tmp = row['real_name']
-        em_tmp = row['email']
-        if un_tmp == "" :
-            row['user_name'] = rn_tmp
     users_df['email'].fillna("None", inplace=True)
 
     # Now connect to the AWS database and insert some rows!
@@ -67,6 +60,10 @@ while True:
                 user_id_tmp = row['user_id']
                 user_name_tmp = row['user_name']
                 real_name_tmp = row['real_name']
+
+                if(user_name_tmp == ""):
+                    user_name_tmp = real_name_tmp
+                    
                 phone_tmp = row['phone']
                 email_tmp = row['email']
                 app_tmp = row['app']
