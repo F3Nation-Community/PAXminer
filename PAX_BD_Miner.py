@@ -286,7 +286,7 @@ def bd_info():
     global bd_df
     
     new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
-    return sum(q_found, count_found, fng_found, date_found, ao_found), new_row
+    return sum([q_found, count_found, fng_found, date_found, ao_found]), new_row
 
 # Looking within a backblast, retrieves a list of pax
 # Adds the Q lines to the pax list as well.
@@ -431,7 +431,6 @@ def safe_cast(val, to_type, default=None):
     except (ValueError, TypeError):
         return default
 
-def backblast_condition_one
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
