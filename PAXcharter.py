@@ -94,7 +94,7 @@ for index, row in users_df.iterrows():
 
 print('Now pulling all of those users beatdown attendance records... Stand by...')
 
-## Define Slack Message function
+## Send Slack Message ( v1 )
 def send_slack_message(channel, message, file):
     return slack.files_upload(
         channels=channel,
@@ -102,11 +102,33 @@ def send_slack_message(channel, message, file):
         file=file
     )
 
+## Send Slack Message ( v2 )
+def send_slack_message_v2(user_id, message, file):
+    # V2 File Upload requires a conversation to be opened 
+    response = slack.conversations_open(users=user_id)
+    channel = response["channel"]["id"]
+
+    return slack.files_upload_v2(
+        channel=channel,
+        initial_comment=message,
+        file=file
+    )
+
+def log_message_sent_error(user_id_tmp, db, pax):
+    print(f"Error initiating conversation: {e.response['error']}")
+    os.system("echo Error: " + user_id_tmp + " >>" + "../logs/" + db + "/PAXcharter.log")
+    logging.warning("Slack Error - Message not sent:", pax, user_id_tmp)
+    print("Slack error on " + pax + " " + user_id_tmp)
+
+def success_message_sent(user_id_tmp, pax, db):
+    os.system("echo " + user_id_tmp + " " + pax + " >>" + "../logs/" + db + "/PAXcharter.log")
+    
 # Query AWS by user ID for attendance history
 #users_df = users_df.iloc[:10] # THIS LINE IS FOR TESTING PURPOSES, THIS FORCES ONLY n USER ROWS TO BE SENT THROUGH THE PIPE
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
 pause_on = [ 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000 ]
 
+region_method = "v2"
 for user_id in users_df['user_id']:
     try:
         attendance_tmp_df = pd.DataFrame([])  # creates an empty dataframe to append to
@@ -142,26 +164,43 @@ for user_id in users_df['user_id']:
                     total_graphs = total_graphs + 1
                     message = 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!"
                     file = '../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
-                    channel = user_id_tmp
+
                     #manual_graphs = [240,241,242,244,245,246,247,249,250]
                     if total_graphs > 0: # This is a count of total users processed, in case of error during processing. Set the total_graphs > to whatever # comes next in the log file row count.
                         print(total_graphs, 'PAX posting graph created for user', pax, 'Sending to Slack now... hang tight!')
-                        #slack.chat.post_message(user_id_tmp, 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!")
-                        #if (total_graphs in pause_on):
-                            #time.sleep(45)
-                        try:
-                            response = send_slack_message(channel, message, file)
-                            #attendance_tmp_df.hist()
-                            os.system("echo " + user_id_tmp + " " + pax + " >>" + "../logs/" + db + "/PAXcharter.log")
-                        except:
-                            os.system("echo Error: " + user_id_tmp + " >>" + "../logs/" + db + "/PAXcharter.log")
-                            logging.warning("Slack Error - Message not sent:", pax, user_id_tmp)
-                            print("Slack error on " + pax + " " + user_id_tmp)
-                            raise e
+                        
+                        # The current method v2, and legacy method, can both be invoked here depending on the region_method variable.
+                        # Most regions still use the legacy method, but will need to migrate to v2 by Spring 2025. 
+                        # The main difference is that v2 requires an additional conversation scope.
+                        # New regions will all use v2.
+                        # user_id_override = "U06GDMGJKNE"
+                        if region_method == "v2":
+                            try:
+                                response = send_slack_message_v2(user_id_tmp, message, file)
 
+                                success_message_sent(user_id_tmp, pax, db)
+                            except Exception as e:
+                                # If the error is missing scope, then 
+                                if e.response['error'] == 'missing_scope':
+                                    print("Error: The app is missing required scopes. Please add the 'im:write' scope.")
+                                    region_method = "v1"
+                                else:
+                                    log_message_sent_error(user_id_tmp, db, pax)
+                                    raise e
+
+                        if region_method != "v2":
+                            try:
+                                channel = user_id_tmp
+                                response = send_slack_message(channel, message, file)
+                                
+                                success_message_sent(user_id_tmp, pax, db)
+                            except:
+                                log_message_sent_error(user_id_tmp, db, pax)
+                                raise e
                     else:
                         print(pax + ' skipped')
-    except:
+    except Exception as e:
+            print(e)
             print("An exception occurred for User ID " + user_id)
     finally:
         plt.close('all') #Note - this was added after the December 2020 processing, make sure this works

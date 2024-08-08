@@ -68,7 +68,8 @@ try:
         plt.savefig('./plots/' + db + '/PAX_Counts_By_AO_' + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
         print('Unique PAX graph created for unique PAX across all AOs. Sending to Slack now... hang tight!')
         #slack.chat.post_message(firstf, "Hello " + region + "! Here is a quick look at how many UNIQUE PAX attended beatdowns by AO by Month for " + yearnum + "!")
-        slack.files_upload(channels=firstf, initial_comment="Hello " + region + "! Here is a quick look at how many UNIQUE PAX attended beatdowns by AO by Month for " + yearnum + "!", file='./plots/' + db + '/PAX_Counts_By_AO_' + thismonthname + yearnum + '.jpg')
+        # firstf_override = "C07FFAG02LS"
+        slack.files_upload_v2(channel=firstf, initial_comment="Hello " + region + "! Here is a quick look at how many UNIQUE PAX attended beatdowns by AO by Month for " + yearnum + "!", file='./plots/' + db + '/PAX_Counts_By_AO_' + thismonthname + yearnum + '.jpg')
         total_graphs = total_graphs + 1
 finally:
     print('Total graphs made:', total_graphs)

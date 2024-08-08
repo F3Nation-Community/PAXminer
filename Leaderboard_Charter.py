@@ -28,7 +28,6 @@ password = config['aws']['password']
 #db = config['aws']['db']
 db = sys.argv[1]
 region = sys.argv[3]
-#region = 'STL'
 
 # Set Slack token
 key = sys.argv[2]
@@ -83,7 +82,8 @@ if not posts_df.empty:
     plt.savefig('../plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
     print('Monthly Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
     #slack.chat.post_message(firstf, 'Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs. The month isn't over yet, SYITG and get on the board!")
-    slack.files_upload(channels=firstf, initial_comment='Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', )
+    # firstf_override = "C07FFAG02LS"
+    slack.files_upload_v2(channel=firstf, initial_comment='Hey ' + region + "! Check out the current posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.). Here are the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + region + thismonthname + yearnum + '.jpg', )
     total_graphs = total_graphs + 1
 print('Total graphs made:', total_graphs)
 
@@ -109,6 +109,7 @@ if not posts_df.empty:
     plt.ylabel("# Posts for " + yearnum + " - Year To Date")
     plt.savefig('../plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', bbox_inches='tight')  # save the figure to a file
     print('YTD Leaderboard Graph created for region', region, 'Sending to Slack now... hang tight!')
-    slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', channels=firstf)
+    # firstf_override = "C07FFAG02LS"
+    slack.files_upload_v2(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + region + yearnum + '.jpg', channel=firstf)
     total_graphs = total_graphs + 1
 print('Total graphs made:', total_graphs)

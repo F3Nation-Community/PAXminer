@@ -63,17 +63,19 @@ yearnum = d.strftime("%Y")
 
 try:
     with mydb.cursor() as cursor:
-        sql = "SELECT ao FROM aos WHERE backblast = 1 and archived = 0"
+        sql = "SELECT ao, channel_id FROM aos WHERE backblast = 1 and archived = 0"
         cursor.execute(sql)
         aos = cursor.fetchall()
-        aos_df = pd.DataFrame(aos, columns={'ao'})
+        aos_df = pd.DataFrame(aos, columns={'ao', 'channel_id'})
 finally:
     print('Now pulling all beatdown records... Stand by...')
 
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
 
 # Query AWS by for beatdown history
-for ao in aos_df['ao']:
+for index, row in aos_df.iterrows():
+    ao = row['ao']
+    channel_id = row['channel_id'] 
     month = []
     day = []
     year = []
@@ -104,7 +106,7 @@ for ao in aos_df['ao']:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                response = slack.files_upload(channels=ao, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
+                response = slack.files_upload_v2(channel=channel_id, initial_comment='Hey ' + ao + "! Here are the posting leaderboards for " + thismonthnamelong + ", " + yearnum + " as well as for Year to Date (includes all beatdowns, rucks, Qsource, etc.) with the top 20 posters! T-CLAPS to these HIMs.", file='../plots/' + db + '/PAX_Leaderboard_' + ao + thismonthname + yearnum + '.jpg')
                 total_graphs = total_graphs + 1
                 break #exit the loop if upload is successful
             except SlackApiError as e:
@@ -141,7 +143,7 @@ for ao in aos_df['ao']:
         max_attempts = 5
         for attempt in range(max_attempts):
             try:
-                slack.files_upload(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channels=ao)
+                slack.files_upload_v2(file='../plots/' + db + '/PAX_Leaderboard_YTD_' + ao + yearnum + '.jpg', channel=channel_id)
                 total_graphs = total_graphs + 1
                 break # exit the loop if upload is successful
             except SlackApiError as e:

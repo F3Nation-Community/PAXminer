@@ -85,7 +85,8 @@ try:
         #fig.write_image('./plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
         print('AO summary table created for all AOs. Sending to Slack now... hang tight!')
         #slack.chat_postMessage(channel=firstf, text="Hey " + region + " - it's the First of the Month! (queue Bone, Thungz and Harmony tunes here)! Here is a detailed summary of AO posting stats for the region last month.")
-        slack.files_upload(channels=firstf, initial_comment="Hey " + region + " - it's that time of the Month again. Here is a detailed summary of AO posting stats for the region last month.", file='./plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
+        # firstf_override = "C07FFAG02LS"
+        slack.files_upload_v2(channel=firstf, initial_comment="Hey " + region + " - it's that time of the Month again. Here is a detailed summary of AO posting stats for the region last month.", file='./plots/' + db + '/AO_SummaryTable' + thismonthname + yearnum + '.jpg')
         total_graphs = total_graphs + 1
 finally:
     print('Total graphs made:', total_graphs)
