@@ -193,9 +193,11 @@ bd_df = pd.DataFrame([])
 pax_attendance_df = pd.DataFrame([])
 warnings.filterwarnings("ignore", category=DeprecationWarning) #This prevents displaying the Deprecation Warning that is present for the RegEx lookahead function used below
 
-def bd_info():
+
+
+def retrieve_q_line(backblast):
     # Find the Q information
-    qline = re.findall(r'(?<=\n)\*?V?Qs?\*?:.+?(?=\n)', str(text_tmp), re.MULTILINE) #This is regex looking for \nQ: with or without an * before Q
+    qline = re.findall(r'(?<=\n)\*?V?Qs?\*?:.+?(?=\n)', str(backblast), re.MULTILINE) #This is regex looking for \nQ: with or without an * before Q
     qids = re.findall(pat, str(qline), re.MULTILINE)
     qids = [re.sub(r'@', '', i) for i in qids]
     if qids:
@@ -206,33 +208,44 @@ def bd_info():
         coqid = qids[1]
     else:
         coqid = 'NA'
-    # Find the PAX Count line (if the Q put one in the BB)
-    pax_count = re.search(r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', str(text_tmp), re.IGNORECASE)
+
+    return qid != 'NA', qid, coqid
+
+def retrieve_count_line(backblast):
+    # Combine the regex patterns for 'Count' and 'Total'
+    patterns = [r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)']
+    pax_count = None
+
+    # Search for the patterns in the backblast text
+    for pattern in patterns:
+        match = re.search(pattern, str(backblast), re.IGNORECASE)
+        if match:
+            pax_count = match.group()
+            break
+    
+    # Extract the first number found in the matched line
     if pax_count:
-        pass
-    else:
-        pax_count = re.search(r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)', str(text_tmp), re.IGNORECASE)
-    if pax_count:
-        pax_count = pax_count.group()
-        pax_count = re.findall('\d+', str(pax_count))
+        pax_count = re.findall(r'\d+', pax_count)
         if pax_count:
-            pax_count = int(pax_count[0])
-        else:
-            pax_count = -1
-    if isinstance(pax_count, int):
-        pass
-    else:
-        pax_count = -1
-    # Find the FNGs line
-    fngline = re.findall(r'(?<=\n)\*?FNGs\*?:\*?.+?(?=\n)', str(text_tmp), re.MULTILINE)  # This is regex looking for \nFNGs: with or without an * before Q
+            return True, int(pax_count[0])
+    
+    return False, -1
+
+def retrieve_fng_line(backblast):
+     # Find the FNGs line
+    fngline = re.findall(r'(?<=\n)\*?FNGs\*?:\*?.+?(?=\n)', str(backblast), re.MULTILINE)  # This is regex looking for \nFNGs: with or without an * before Q
     if fngline:
         fngline = fngline[0]
         fngs = re.sub('\*?FNGs\*?:\s?', '', str(fngline))
         fngs = fngs.strip()
+        return True, fngs
     else:
         fngs = 'None listed'
+        return False, fngs
+    
+def retrieve_date_line(backblast):
     #Find the Date:
-    dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(text_tmp), re.IGNORECASE)
+    dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(backblast), re.IGNORECASE)
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
         dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
@@ -241,22 +254,39 @@ def bd_info():
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
         else:
             date_tmp = str(datetime.strftime(dateline, '%Y-%m-%d'))
+        return True, date_tmp
     else:
         date_tmp = msg_date
+        return False, date_tmp
+
+def retrieve_ao_line(backblast):
     #Find the AO line
-    aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(text_tmp),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
+    aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(backblast),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
     if aoline:
         ao_name = re.sub('\*?AO\*?:\s?', '', str(aoline))
-        ao_name = ao_name.strip()
+        return True, ao_name.strip()
     else:
-        ao_name = 'Unknown'
+        return False, 'Unknown'
+    
+def bd_info():
+    q_found, qid, coqid = retrieve_q_line(text_tmp)
+
+    count_found, pax_count = retrieve_count_line(text_tmp)
+   
+    fng_found, fngs = retrieve_fng_line(text_tmp)
+
+    date_found, date_tmp = retrieve_date_line(text_tmp)
+    
+    ao_found, ao_name = retrieve_ao_line(text_tmp)
 
     #Replace users with usernames.
     #Replace AOs with AOs.
     parsed_backblast = parse_backblast(text_tmp, users_dict, aos_dict)
+    
     global bd_df
+    
     new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
-    return new_row
+    return sum(q_found, count_found, fng_found, date_found, ao_found), new_row
 
 # Looking within a backblast, retrieves a list of pax
 # Adds the Q lines to the pax list as well.
@@ -400,7 +430,8 @@ def safe_cast(val, to_type, default=None):
         return to_type(val)
     except (ValueError, TypeError):
         return default
-    
+
+def backblast_condition_one
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
@@ -415,17 +446,19 @@ for index, row in f3_df.iterrows():
     text_tmp = re.sub('\*', '', str(text_tmp))
     user_name = row['user_name']
     user_id = row['user_id']
-    if len(str(text_tmp)) <= len(MIN_BACKBLAST):
-        continue
-    
-    if containsBackblastKeyword(text_tmp):
-        new_row = bd_info()
-        if float(new_row["timestamp"]) > float(cutoff_ts):
-            upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
 
-            new_row["database_action"] = upsertAction
-            
-            bd_df = bd_df.append(new_row, ignore_index = True)
+    # Backblast criteria one. Be over the minimum length and contain the backblast keyword
+    if (len(str(text_tmp)) >= len(MIN_BACKBLAST)) and containsBackblastKeyword(text_tmp):
+        line_matches, new_row = bd_info()
+
+        # Backblast criteria two. Besides the backblast keyword, contain one other properly formatted line.
+        if line_matches >= 1:
+            if float(new_row["timestamp"]) > float(cutoff_ts):
+                upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
+
+                new_row["database_action"] = upsertAction
+                
+                bd_df = bd_df.append(new_row, ignore_index = True)
 
 # Now connect to the AWS database and insert some rows!
 try:
