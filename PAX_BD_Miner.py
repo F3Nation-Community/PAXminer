@@ -465,7 +465,8 @@ try:
             if user_name in appnames:
                 user_id = q_user_id
                 user_name = 'Q'
-            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
+            q_error_text = "Paxminer failed to import your latest backblast.\n"
+            q_message_end = "Backblast message posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>)\n"
             # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
 
             if database_action == DbAction.IGNORE:
@@ -526,15 +527,14 @@ try:
                     if database_action == DbAction.UPDATE :
                         pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
                         if user_id != 'APP':
-                            q_error_text += " - Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
+                            q_success_text = "Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
                             send_q_msg = 1
                     else:
                         pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
                         if user_id != 'APP':
-                            q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
+                            q_success_text = "Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
                             send_q_msg = 1
                     
-                    print("Slack message sent to Q.")
                     logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
 
                     pax = list_pax(backblast)
@@ -572,9 +572,11 @@ try:
                 except Exception as error:
                     print("An error occurred determining to send an error message", error)
                     logging.error("An error occured determining to send an error message: %s", error)
-                    
-            if send_q_msg > 0:
-                slack.chat_postMessage(channel=user_id, text=q_error_text)
+ 
+            if send_q_msg == 1:
+                slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
+            if send_q_msg == 2:
+                slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
 
         sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
         cursor.execute(sql3)
