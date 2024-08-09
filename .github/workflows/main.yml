@@ -20,9 +20,3 @@ jobs:
       with:
         path: '*'
         destination: 'f3-code/paxminer'
-
-    # Example of using the output
-    - id: 'uploaded-files'
-      uses: 'foo/bar@v1'
-      env:
-        file: '${{ steps.upload-file.outputs.uploaded }}'
