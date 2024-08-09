@@ -18,5 +18,5 @@ jobs:
     - id: 'upload-file'
       uses: 'google-github-actions/upload-cloud-storage@v2'
       with:
-        path: '*'
+        path: 'charter-scripts'
         destination: 'f3-code/paxminer'
