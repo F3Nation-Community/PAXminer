@@ -13,7 +13,7 @@ jobs:
     - id: 'auth'
       uses: 'google-github-actions/auth@v2'
       with:
-        workload_identity_provider: 'projects/521822803309/locations/global/workloadIdentityPools/github/providers/my-repo'
+        workload_identity_provider: 'projects/521822803309/locations/global/workloadIdentityPools/github/providers/paxminer'
 
     - id: 'upload-file'
       uses: 'google-github-actions/upload-cloud-storage@v2'
