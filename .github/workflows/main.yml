@@ -1,0 +1,28 @@
+on: workflow_dispatch
+jobs:
+  job_id:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    runs-on: [ ubuntu-latest ]
+
+    steps:
+    - id: 'checkout'
+      uses: 'actions/checkout@v4'
+
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: 'projects/521822803309/locations/global/workloadIdentityPools/github/providers/my-repo'
+
+    - id: 'upload-file'
+      uses: 'google-github-actions/upload-cloud-storage@v2'
+      with:
+        path: '*'
+        destination: 'f3-code/paxminer'
+
+    # Example of using the output
+    - id: 'uploaded-files'
+      uses: 'foo/bar@v1'
+      env:
+        file: '${{ steps.upload-file.outputs.uploaded }}'
