@@ -75,9 +75,10 @@ date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
 # Set up logging
 logging.basicConfig(filename='../logs/BD_PAX_miner.log',
                             filemode = 'a',
-                            format='%(asctime)s %(levelname)-8s %(message)s',
+                            format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
+logging(f"Beginning BD+Paxminer {current_ts}")
 logging.info("Running combined BD+PAXminer for " + db)
 pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
 
@@ -643,14 +644,19 @@ try:
         mydb.commit()
 finally:
     pass
-logging.info("Beatdown execution complete for region " + db)
 
 mydb.close()
 
+
 pm_log_text += "End of PAXminer hourly run"
+
+logging.info("Beatdown execution complete for region " + db)
+logging.info(f"Time elapsed: {time.time() - current_ts}")
+
 try:
     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
 except:
     print("Slack log message error - not posted")
+    logging.error("Slack log message error - not posted")
     pass
 print('Finished. You may go back to your day!')
