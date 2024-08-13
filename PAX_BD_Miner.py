@@ -32,7 +32,7 @@ MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
 LOOKBACK_DAYS = 7
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
-ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 60
+ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -533,7 +533,7 @@ try:
                 print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                 pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
                 if user_id != 'APP':
-                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future or a date with the time appended.\n"
+                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future, a date with the time appended, or a date more than one month on the past.\n"
                     send_q_msg = 2
                 qc = 0
             
