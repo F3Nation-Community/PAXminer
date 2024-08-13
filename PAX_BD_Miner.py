@@ -32,6 +32,7 @@ MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
 LOOKBACK_DAYS = 7
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
+ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 60
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -366,7 +367,7 @@ def containsBackblastKeyword(potential_backblast):
     )
 
 def isValidDate(date):
-    lookback_valid_date = (today - timedelta(days = 30 )).strftime('%Y-%m-%d')
+    lookback_valid_date = (today - timedelta(days = ALLOWABLE_DAYS_BACKBLAST_DATE_VALID )).strftime('%Y-%m-%d')
     forward_valid_date = (today + timedelta(days = 2)).strftime('%Y-%m-%d')
 
     if date == '2099-12-31':
