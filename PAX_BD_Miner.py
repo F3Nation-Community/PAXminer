@@ -78,7 +78,7 @@ logging.basicConfig(filename='../logs/BD_PAX_miner.log',
                             format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
-logging(f"Beginning BD+Paxminer {current_ts}")
+logging.info(f"Beginning BD+Paxminer {current_ts}")
 logging.info("Running combined BD+PAXminer for " + db)
 pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
 
@@ -269,7 +269,7 @@ def retrieve_ao_line(backblast):
     else:
         return False, 'Unknown'
     
-def bd_info():
+def bd_info(text_tmp):
     q_found, qid, coqid = retrieve_q_line(text_tmp)
 
     count_found, pax_count = retrieve_count_line(text_tmp)
@@ -449,7 +449,7 @@ for index, row in f3_df.iterrows():
 
     # Backblast criteria one. Be over the minimum length and contain the backblast keyword
     if (len(str(text_tmp)) >= len(MIN_BACKBLAST)) and containsBackblastKeyword(text_tmp):
-        line_matches, new_row = bd_info()
+        line_matches, new_row = bd_info(text_tmp)
 
         # Backblast criteria two. Besides the backblast keyword, contain one other properly formatted line.
         if line_matches >= 1:
