@@ -32,6 +32,7 @@ MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
 LOOKBACK_DAYS = 7
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
+ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -75,9 +76,10 @@ date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
 # Set up logging
 logging.basicConfig(filename='../logs/BD_PAX_miner.log',
                             filemode = 'a',
-                            format='%(asctime)s %(levelname)-8s %(message)s',
+                            format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
+logging.info(f"Beginning BD+Paxminer {current_ts}")
 logging.info("Running combined BD+PAXminer for " + db)
 pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
 
@@ -193,9 +195,11 @@ bd_df = pd.DataFrame([])
 pax_attendance_df = pd.DataFrame([])
 warnings.filterwarnings("ignore", category=DeprecationWarning) #This prevents displaying the Deprecation Warning that is present for the RegEx lookahead function used below
 
-def bd_info():
+
+
+def retrieve_q_line(backblast):
     # Find the Q information
-    qline = re.findall(r'(?<=\n)\*?V?Qs?\*?:.+?(?=\n)', str(text_tmp), re.MULTILINE) #This is regex looking for \nQ: with or without an * before Q
+    qline = re.findall(r'(?<=\n)\*?V?Qs?\*?:.+?(?=\n)', str(backblast), re.MULTILINE) #This is regex looking for \nQ: with or without an * before Q
     qids = re.findall(pat, str(qline), re.MULTILINE)
     qids = [re.sub(r'@', '', i) for i in qids]
     if qids:
@@ -206,33 +210,44 @@ def bd_info():
         coqid = qids[1]
     else:
         coqid = 'NA'
-    # Find the PAX Count line (if the Q put one in the BB)
-    pax_count = re.search(r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', str(text_tmp), re.IGNORECASE)
+
+    return qid != 'NA', qid, coqid
+
+def retrieve_count_line(backblast):
+    # Combine the regex patterns for 'Count' and 'Total'
+    patterns = [r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)']
+    pax_count = None
+
+    # Search for the patterns in the backblast text
+    for pattern in patterns:
+        match = re.search(pattern, str(backblast), re.IGNORECASE)
+        if match:
+            pax_count = match.group()
+            break
+    
+    # Extract the first number found in the matched line
     if pax_count:
-        pass
-    else:
-        pax_count = re.search(r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)', str(text_tmp), re.IGNORECASE)
-    if pax_count:
-        pax_count = pax_count.group()
-        pax_count = re.findall('\d+', str(pax_count))
+        pax_count = re.findall(r'\d+', pax_count)
         if pax_count:
-            pax_count = int(pax_count[0])
-        else:
-            pax_count = -1
-    if isinstance(pax_count, int):
-        pass
-    else:
-        pax_count = -1
-    # Find the FNGs line
-    fngline = re.findall(r'(?<=\n)\*?FNGs\*?:\*?.+?(?=\n)', str(text_tmp), re.MULTILINE)  # This is regex looking for \nFNGs: with or without an * before Q
+            return True, int(pax_count[0])
+    
+    return False, -1
+
+def retrieve_fng_line(backblast):
+     # Find the FNGs line
+    fngline = re.findall(r'(?<=\n)\*?FNGs\*?:\*?.+?(?=\n)', str(backblast), re.MULTILINE)  # This is regex looking for \nFNGs: with or without an * before Q
     if fngline:
         fngline = fngline[0]
         fngs = re.sub('\*?FNGs\*?:\s?', '', str(fngline))
         fngs = fngs.strip()
+        return True, fngs
     else:
         fngs = 'None listed'
+        return False, fngs
+    
+def retrieve_date_line(backblast):
     #Find the Date:
-    dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(text_tmp), re.IGNORECASE)
+    dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(backblast), re.IGNORECASE)
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
         dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
@@ -241,22 +256,39 @@ def bd_info():
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
         else:
             date_tmp = str(datetime.strftime(dateline, '%Y-%m-%d'))
+        return True, date_tmp
     else:
         date_tmp = msg_date
+        return False, date_tmp
+
+def retrieve_ao_line(backblast):
     #Find the AO line
-    aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(text_tmp),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
+    aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(backblast),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
     if aoline:
         ao_name = re.sub('\*?AO\*?:\s?', '', str(aoline))
-        ao_name = ao_name.strip()
+        return True, ao_name.strip()
     else:
-        ao_name = 'Unknown'
+        return False, 'Unknown'
+    
+def bd_info(text_tmp):
+    q_found, qid, coqid = retrieve_q_line(text_tmp)
+
+    count_found, pax_count = retrieve_count_line(text_tmp)
+   
+    fng_found, fngs = retrieve_fng_line(text_tmp)
+
+    date_found, date_tmp = retrieve_date_line(text_tmp)
+    
+    ao_found, ao_name = retrieve_ao_line(text_tmp)
 
     #Replace users with usernames.
     #Replace AOs with AOs.
     parsed_backblast = parse_backblast(text_tmp, users_dict, aos_dict)
+    
     global bd_df
+    
     new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
-    return new_row
+    return sum([q_found, count_found, fng_found, date_found, ao_found]), new_row
 
 # Looking within a backblast, retrieves a list of pax
 # Adds the Q lines to the pax list as well.
@@ -335,7 +367,7 @@ def containsBackblastKeyword(potential_backblast):
     )
 
 def isValidDate(date):
-    lookback_valid_date = (today - timedelta(days = 30 )).strftime('%Y-%m-%d')
+    lookback_valid_date = (today - timedelta(days = ALLOWABLE_DAYS_BACKBLAST_DATE_VALID )).strftime('%Y-%m-%d')
     forward_valid_date = (today + timedelta(days = 2)).strftime('%Y-%m-%d')
 
     if date == '2099-12-31':
@@ -400,7 +432,7 @@ def safe_cast(val, to_type, default=None):
         return to_type(val)
     except (ValueError, TypeError):
         return default
-    
+
 # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
 for index, row in f3_df.iterrows():
     ao_tmp = row['channel_id']
@@ -415,17 +447,19 @@ for index, row in f3_df.iterrows():
     text_tmp = re.sub('\*', '', str(text_tmp))
     user_name = row['user_name']
     user_id = row['user_id']
-    if len(str(text_tmp)) <= len(MIN_BACKBLAST):
-        continue
-    
-    if containsBackblastKeyword(text_tmp):
-        new_row = bd_info()
-        if float(new_row["timestamp"]) > float(cutoff_ts):
-            upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
 
-            new_row["database_action"] = upsertAction
-            
-            bd_df = bd_df.append(new_row, ignore_index = True)
+    # Backblast criteria one. Be over the minimum length and contain the backblast keyword
+    if (len(str(text_tmp)) >= len(MIN_BACKBLAST)) and containsBackblastKeyword(text_tmp):
+        line_matches, new_row = bd_info(text_tmp)
+
+        # Backblast criteria two. Besides the backblast keyword, contain one other properly formatted line.
+        if line_matches >= 1:
+            if float(new_row["timestamp"]) > float(cutoff_ts):
+                upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
+
+                new_row["database_action"] = upsertAction
+                
+                bd_df = bd_df.append(new_row, ignore_index = True)
 
 # Now connect to the AWS database and insert some rows!
 try:
@@ -465,7 +499,8 @@ try:
             if user_name in appnames:
                 user_id = q_user_id
                 user_name = 'Q'
-            q_error_text = "Hey " + user_name + " - I see a backblast you posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>). Here's what happened when I tried to process it: \n"
+            q_error_text = "Paxminer failed to import your latest backblast.\n"
+            q_message_end = "Backblast message posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>)\n"
             # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
 
             if database_action == DbAction.IGNORE:
@@ -498,7 +533,7 @@ try:
                 print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
                 pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
                 if user_id != 'APP':
-                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future or a date with the time appended.\n"
+                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future, a date with the time appended, or a date more than one month on the past.\n"
                     send_q_msg = 2
                 qc = 0
             
@@ -526,15 +561,14 @@ try:
                     if database_action == DbAction.UPDATE :
                         pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
                         if user_id != 'APP':
-                            q_error_text += " - Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
+                            q_success_text = "Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
                             send_q_msg = 1
                     else:
                         pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
                         if user_id != 'APP':
-                            q_error_text += " - Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
+                            q_success_text = "Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
                             send_q_msg = 1
                     
-                    print("Slack message sent to Q.")
                     logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
 
                     pax = list_pax(backblast)
@@ -572,9 +606,11 @@ try:
                 except Exception as error:
                     print("An error occurred determining to send an error message", error)
                     logging.error("An error occured determining to send an error message: %s", error)
-                    
-            if send_q_msg > 0:
-                slack.chat_postMessage(channel=user_id, text=q_error_text)
+ 
+            if send_q_msg == 1:
+                slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
+            if send_q_msg == 2:
+                slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
 
         sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
         cursor.execute(sql3)
@@ -609,14 +645,19 @@ try:
         mydb.commit()
 finally:
     pass
-logging.info("Beatdown execution complete for region " + db)
 
 mydb.close()
 
+
 pm_log_text += "End of PAXminer hourly run"
+
+logging.info("Beatdown execution complete for region " + db)
+logging.info(f"Time elapsed: {time.time() - current_ts}")
+
 try:
     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
 except:
     print("Slack log message error - not posted")
+    logging.error("Slack log message error - not posted")
     pass
 print('Finished. You may go back to your day!')

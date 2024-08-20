@@ -13,6 +13,7 @@ import pymysql.cursors
 import configparser
 import sys
 from slack_sdk import WebClient
+import time
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
@@ -37,17 +38,26 @@ mydb = pymysql.connect(
     charset='utf8mb4',
     cursorclass=pymysql.cursors.DictCursor)
 
+def user_lookback():
+    SECONDS_PER_DAY = 86400
+    LOOKBACK_DAYS = 7
+    LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
+    current_ts = time.time()
+    cutoff_ts = current_ts - LOOKBACK_SECONDS
+    return cutoff_ts
+
 print('Looking for any new or updated F3 Slack Users. Stand by...')
 
 # Make users Data Frame
 data = ''
 while True:
+    cutoff_ts = user_lookback()
     users_response = slack.users_list(limit=1000, cursor=data)
     response_metadata = users_response.get('response_metadata', {})
     next_cursor = response_metadata.get('next_cursor')
     users = users_response.data['members']
     users_df = pd.json_normalize(users)
-    users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot']]
+    users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot', 'updated']]
     users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email', 'is_bot': 'app'})
     # Update any null user_names with the real_name values
     users_df['email'].fillna("None", inplace=True)
@@ -55,7 +65,7 @@ while True:
     # Now connect to the AWS database and insert some rows!
     try:
         with mydb.cursor() as cursor:
-            for index, row in users_df.iterrows():
+            for index, row in users_df[users_df['updated'] > cutoff_ts].iterrows():
                 sql = "INSERT INTO users (user_id, user_name, real_name, phone, email, app) VALUES (%s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_name=%s, real_name=%s, phone=%s, email=%s, app=%s"
                 user_id_tmp = row['user_id']
                 user_name_tmp = row['user_name']
