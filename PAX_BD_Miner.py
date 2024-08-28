@@ -568,7 +568,7 @@ try:
                     print(cursor.rowcount, "records inserted.")
                     print('Beatdown Date:', bd_date)
                     print('Message Posting Date:', msg_date)
-                    print('AO:', parsed_ao_channel)
+                    print('AO:', ao_id)
                     print('Q:', q_user_id)
                     print('Co-Q', coq_user_id)
                     print('Pax Count:',pax_count)
