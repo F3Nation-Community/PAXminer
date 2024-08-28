@@ -67,7 +67,7 @@ mydb = pymysql.connect(
 epoch = datetime(1970, 1, 1)
 yesterday = datetime.now() - timedelta(days = 1)
 today = datetime.now()
-cutoff_date = today - timedelta(days = 1) # This tells BDminer to go back up to N days for message age
+cutoff_date = today - timedelta(days = 7) # This tells BDminer to go back up to N days for message age
 current_ts = time.time()
 cutoff_ts = current_ts - LOOKBACK_SECONDS
 cutoff_date = cutoff_date.strftime('%Y-%m-%d')
@@ -289,7 +289,7 @@ def bd_info(text_tmp):
 
     date_found, date_tmp = retrieve_date_line(text_tmp)
     
-    ao_found, ao_name = retrieve_ao_line(text_tmp)
+    ao_found, parsed_ao_channel = retrieve_ao_line(text_tmp)
 
     #Replace users with usernames.
     #Replace AOs with AOs.
@@ -297,7 +297,7 @@ def bd_info(text_tmp):
     
     global bd_df
     
-    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'channel_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
+    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'channel_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'parsed_ao_channel' : parsed_ao_channel}
     return sum([q_found, count_found, fng_found, date_found, ao_found]), new_row
 
 # Looking within a backblast, retrieves a list of pax
@@ -499,12 +499,12 @@ try:
             user_id = row['user_id']
             fngs = row['fngs']
             msg_link = slack.chat_getPermalink(channel=channel_id, message_ts=timestamp)["permalink"]
-            ao_name = row['ao_name']
+            parsed_ao_channel = row['parsed_ao_channel_id']
             database_action = row["database_action"]
             backblast_parsed = row['backblast_parsed']
             
-            if ao_name in channels_df["channel_id"].values :
-                ao_id = ao_name
+            if parsed_ao_channel in channels_df["channel_id"].values :
+                ao_id = parsed_ao_channel
             else : 
                 ao_id = channel_id
             
@@ -568,7 +568,7 @@ try:
                     print(cursor.rowcount, "records inserted.")
                     print('Beatdown Date:', bd_date)
                     print('Message Posting Date:', msg_date)
-                    print('AO:', ao_name)
+                    print('AO:', parsed_ao_channel)
                     print('Q:', q_user_id)
                     print('Co-Q', coq_user_id)
                     print('Pax Count:',pax_count)
