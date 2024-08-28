@@ -67,7 +67,7 @@ mydb = pymysql.connect(
 epoch = datetime(1970, 1, 1)
 yesterday = datetime.now() - timedelta(days = 1)
 today = datetime.now()
-cutoff_date = today - timedelta(days = 7) # This tells BDminer to go back up to N days for message age
+cutoff_date = today - timedelta(days = 1) # This tells BDminer to go back up to N days for message age
 current_ts = time.time()
 cutoff_ts = current_ts - LOOKBACK_SECONDS
 cutoff_date = cutoff_date.strftime('%Y-%m-%d')
@@ -263,12 +263,22 @@ def retrieve_date_line(backblast):
 
 def retrieve_ao_line(backblast):
     #Find the AO line
-    aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(backblast),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
-    if aoline:
-        ao_name = re.sub('\*?AO\*?:\s?', '', str(aoline))
-        return True, ao_name.strip()
-    else:
+    try:
+        aoline = re.findall(r'(?<=\n)\*?AO\*?:\*?.+?(?=\n)', str(backblast),re.MULTILINE)  # This is regex looking for \nAO: with or without an *
+
+        if aoline:
+            ao_capture_pattern = r'<#([CG][A-Z0-9]{8,11})\|>'
+            match = re.search(ao_capture_pattern, str(aoline))
+            
+            if match:
+                extracted_code = match.group(1)
+                return True, extracted_code.strip()
+            return False, 'Unknown'
+        else:
+            return False, 'Unknown'
+    except Exception:
         return False, 'Unknown'
+    
     
 def bd_info(text_tmp):
     q_found, qid, coqid = retrieve_q_line(text_tmp)
@@ -287,7 +297,7 @@ def bd_info(text_tmp):
     
     global bd_df
     
-    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'ao_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
+    new_row = {'timestamp' : timestamp, 'ts_edited' : ts_edited, 'msg_date' : msg_date, 'channel_id' : ao_tmp, 'bd_date' : date_tmp, 'q_user_id' : qid, 'coq_user_id' : coqid, 'pax_count' : pax_count, 'backblast' : text_tmp, 'backblast_parsed' : parsed_backblast, 'fngs' : fngs, 'user_name' : user_name, 'user_id' : user_id, 'ao_name' : ao_name}
     return sum([q_found, count_found, fng_found, date_found, ao_found]), new_row
 
 # Looking within a backblast, retrieves a list of pax
@@ -478,7 +488,7 @@ try:
             
             timestamp = row['timestamp']
             ts_edited = row['ts_edited']
-            ao_id = row['ao_id']
+            channel_id = row['channel_id']
             msg_date = row['msg_date']
             bd_date = row['bd_date']
             q_user_id = row['q_user_id']
@@ -488,11 +498,16 @@ try:
             user_name = row['user_name']
             user_id = row['user_id']
             fngs = row['fngs']
-            msg_link = slack.chat_getPermalink(channel=ao_id, message_ts=timestamp)["permalink"]
+            msg_link = slack.chat_getPermalink(channel=channel_id, message_ts=timestamp)["permalink"]
             ao_name = row['ao_name']
             database_action = row["database_action"]
             backblast_parsed = row['backblast_parsed']
-
+            
+            if ao_name in channels_df["channel_id"].values :
+                ao_id = ao_name
+            else : 
+                ao_id = channel_id
+            
             val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed)
             # for Slackblast users, set the user_id as the Q
             appnames = ['slackblast', 'Slackblast']
