@@ -19,7 +19,7 @@ jobs:
       run: gcloud auth configure-docker us-central1-docker.pkg.dev
 
     - name: 'Build Docker Image'
-      run: docker build . --platform linux/amd64 --tag us-central1-docker.pkg.dev/f3slackbot/paxminer-db-management/user-channel-management:latest
+      run: docker build ./database_management --platform linux/amd64 --tag us-central1-docker.pkg.dev/f3slackbot/paxminer-db-management/user-channel-management:latest
 
     - name: 'Push Docker Image'
       run: docker push us-central1-docker.pkg.dev/f3slackbot/paxminer-db-management/user-channel-management:latest
