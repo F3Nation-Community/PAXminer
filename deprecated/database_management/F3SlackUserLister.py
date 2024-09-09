@@ -17,7 +17,7 @@ import time
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
+config.read('../../config/credentials.ini');
 host = config['aws']['host']
 port = int(config['aws']['port'])
 user = config['aws']['user']
@@ -40,7 +40,7 @@ mydb = pymysql.connect(
 
 def user_lookback():
     SECONDS_PER_DAY = 86400
-    LOOKBACK_DAYS = 7
+    LOOKBACK_DAYS = 500
     LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
     current_ts = time.time()
     cutoff_ts = current_ts - LOOKBACK_SECONDS
