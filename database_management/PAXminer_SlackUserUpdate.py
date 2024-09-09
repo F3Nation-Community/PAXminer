@@ -43,7 +43,7 @@ def database_management_update():
         
         logging.info('Executing user updates for region ' + region)
         try :
-            database_slack_user_update(region_db, key)
+            database_slack_user_update(region_db, key, False)
         except Exception as e:
             logging.error("An error occured updating the users for region " + region_db)
             logging.error(e)

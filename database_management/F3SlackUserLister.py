@@ -16,16 +16,18 @@ import os
 import logging
 
 
-def user_lookback():
+def user_lookback(firsttime_run):
         SECONDS_PER_DAY = 86400
         LOOKBACK_DAYS = 7
+        if firsttime_run :
+            LOOKBACK_DAYS = 70000
         LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
         current_ts = time.time()
         cutoff_ts = current_ts - LOOKBACK_SECONDS
         return cutoff_ts
 
 
-def database_slack_user_update(region_db, key):
+def database_slack_user_update(region_db, key, firsttime_run):
     logging.basicConfig(format=f'%(asctime)s [{region_db}] %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
@@ -54,7 +56,7 @@ def database_slack_user_update(region_db, key):
     # Make users Data Frame
     data = ''
     while True:
-        cutoff_ts = user_lookback()
+        cutoff_ts = user_lookback(firsttime_run)
         users_response = slack.users_list(limit=1000, cursor=data)
         response_metadata = users_response.get('response_metadata', {})
         next_cursor = response_metadata.get('next_cursor')
