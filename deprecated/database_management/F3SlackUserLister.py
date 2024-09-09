@@ -40,7 +40,7 @@ mydb = pymysql.connect(
 
 def user_lookback():
     SECONDS_PER_DAY = 86400
-    LOOKBACK_DAYS = 500
+    LOOKBACK_DAYS = 7
     LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
     current_ts = time.time()
     cutoff_ts = current_ts - LOOKBACK_SECONDS

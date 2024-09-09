@@ -40,7 +40,6 @@ mydb = pymysql.connect(
 # Get channel list
 channels_response = slack.conversations_list(limit=999)
 channels = channels_response.data['channels']
-print(channels)
 channels_df = pd.json_normalize(channels)
 channels_df = channels_df[['id', 'name', 'created', 'is_archived']]
 channels_df = channels_df.rename(columns={'id' : 'channel_id', 'name' : 'ao', 'created' : 'channel_created', 'is_archived' : 'archived'})
@@ -50,7 +49,6 @@ print('Updating Slack channel list / AOs for region...')
 try:
     with mydb.cursor() as cursor:
         for index, row in channels_df.iterrows():
-            print(row['ao'])
             sql = "INSERT INTO aos (ao, channel_id, channel_created, archived) VALUES (%s, %s, %s, %s) ON DUPLICATE KEY UPDATE ao=%s, archived=%s"
             channel_name_tmp = row['ao']
             channel_id_tmp = row['channel_id']
