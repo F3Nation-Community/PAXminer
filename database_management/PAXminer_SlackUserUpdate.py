@@ -1,7 +1,7 @@
 import pandas as pd
 import pymysql.cursors
 import os
-from F3SlackUserLister import database_slack_user_update
+from F3SlackUserLister import database_slack_user_update, init_db
 from F3SlackChannelLister import database_slack_channel_update
 import logging
 
@@ -43,13 +43,13 @@ def database_management_update():
         
         logging.info('Executing user updates for region ' + region)
         try :
-            database_slack_user_update(region_db, key, False)
+            database_slack_user_update(region_db, key, False, init_db(host, port, user, password, region_db))
         except Exception as e:
             logging.error("An error occured updating the users for region " + region_db)
             logging.error(e)
 
         try :
-            database_slack_channel_update(region_db, key)
+            database_slack_channel_update(region_db, key, init_db(host, port, user, password, region_db))
         except Exception as e:
             logging.error("An error occured updating the channels for region " + region_db)
             logging.error(e)
