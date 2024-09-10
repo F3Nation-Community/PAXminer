@@ -1,22 +1,15 @@
-from F3SlackUserLister import database_slack_user_update, init_db
+from F3SlackUserLister import database_slack_user_update
 
-import configparser
 import sys
 from slack_sdk import WebClient
 
+from db_connection_manager import DBConnectionManager
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = config['aws']['db']
 db = sys.argv[1]
+connection = DBConnectionManager('../config/credentials.ini').connect(db)
 
 # Set Slack token
 key = sys.argv[2]
 slack = WebClient(token=key)
 
-database_slack_user_update(db, key, False, init_db(host, port, user, password, db))
+database_slack_user_update(db, key, False, connection)

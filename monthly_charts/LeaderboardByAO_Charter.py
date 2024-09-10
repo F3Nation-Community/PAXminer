@@ -10,25 +10,20 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import time
 import pandas as pd
-import pymysql.cursors
 import datetime
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import configparser
 import sys
 # This handler does retries when HTTP status 429 is returned
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
-# Configure AWS credentials
-config = configparser.ConfigParser()
-config.read('../config/credentials.ini')
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = config['aws']['db']
 db = sys.argv[1]
+mydb = DBConnectionManager('../config/credentials.ini').connect(db)
+
 region = sys.argv[3]
 #region = 'STL'
 
@@ -40,15 +35,6 @@ firstf = sys.argv[4] #designated 1st-f channel for the region
 rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=7)
 slack.retry_handlers.append(rate_limit_handler)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 #Graph Counter Reset
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)

@@ -6,9 +6,10 @@ posting history to tab delimited files on a google sheet.
 '''
 
 import pandas as pd
-import pymysql.cursors
-import configparser
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import sys
 import os
@@ -19,31 +20,13 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-#key = config['slack']['prod_key']
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = 'f3meca'
-#db = config['aws']['db']
 db = sys.argv[1]
+mydb = DBConnectionManager('../config/credentials.ini').connect(db)
 
 # Set Slack token
 key = sys.argv[2]
 slack = Slacker(key)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 try:
     with mydb.cursor() as cursor:

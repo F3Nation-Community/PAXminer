@@ -7,6 +7,9 @@ WORKDIR /app
 # Copy the current directory contents into the container at /app
 COPY . /app
 
+# Copy the db_connection_manager.py from the parent directory
+COPY ../db_connection_manager.py /app/
+
 # Ensure the script is executable
 RUN chmod +x /app/main.py
 
