@@ -9,34 +9,14 @@ Usage: F3SlackChannelLister.py [db_name] [slack_token]
 '''
 
 import pandas as pd
-import pymysql.cursors
 from slack_sdk import WebClient
-import os
 import logging
 
-def database_slack_channel_update(region_db, key):
-    logging.basicConfig(format=f'%(asctime)s [{region_db}] %(levelname)-8s %(message)s',
-                            datefmt = '%Y-%m-%d %H:%M:%S',
-                            level = logging.INFO)
+def database_slack_channel_update(region_db, key, mydb):
     logging.info("Database_slack_user_update")
-    host = os.environ['host']
-    port = 3306
-    user = os.environ['user']
-    password = os.environ['password']
 
     # Configure AWS credentials
     slack = WebClient(token=key)
-
-    #Define AWS Database connection criteria
-    mydb = pymysql.connect(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        db=region_db,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor)
-
     # Get channel list
     channels_response = slack.conversations_list(limit=999)
     channels = channels_response.data['channels']
@@ -45,7 +25,7 @@ def database_slack_channel_update(region_db, key):
     channels_df = channels_df.rename(columns={'id' : 'channel_id', 'name' : 'ao', 'created' : 'channel_created', 'is_archived' : 'archived'})
 
     # Now connect to the AWS database and insert some rows!
-    logging.info('Updating Slack channel list / AOs for region...')
+    logging.info('Updating Slack channel list / AOs for region...' + region_db)
     try:
         with mydb.cursor() as cursor:
             for index, row in channels_df.iterrows():
@@ -59,17 +39,17 @@ def database_slack_channel_update(region_db, key):
                 cursor.execute(sql, val)
                 mydb.commit()
                 if cursor.rowcount == 1:
-                    logging.info(channel_name_tmp, "record inserted.")
-                #     try:
-                #         slack.chat_postMessage(channel='paxminer_logs', text=" - Slack channel created for " + channel_name_tmp)
-                #     except:
-                #         pass
+                    logging.info(channel_name_tmp +  "record inserted.")
+                    try:
+                        slack.chat_postMessage(channel='paxminer_logs', text=" - Slack channel created for " + channel_name_tmp)
+                    except:
+                        pass
                 elif cursor.rowcount == 2:
-                    logging.info(channel_name_tmp, "record updated.")
-                #     try:
-                #         slack.chat_postMessage(channel='paxminer_logs', text=" - Slack channel updated for " + channel_name_tmp)
-                #     except:
-                #         pass
+                    logging.info(channel_name_tmp + " record updated.")
+                    try:
+                        slack.chat_postMessage(channel='paxminer_logs', text=" - Slack channel updated for " + channel_name_tmp)
+                    except:
+                        pass
         with mydb.cursor() as cursor3:
             sql3 = "UPDATE aos SET backblast = 0 where backblast IS NULL"
             cursor3.execute(sql3)

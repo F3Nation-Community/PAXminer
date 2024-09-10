@@ -17,7 +17,7 @@ import time
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
+config.read('../../config/credentials.ini');
 host = config['aws']['host']
 port = int(config['aws']['port'])
 user = config['aws']['user']
