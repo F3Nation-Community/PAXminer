@@ -15,7 +15,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
-import time
 import os
 import logging
 # This handler does retries when HTTP status 429 is returned
@@ -157,6 +156,14 @@ for user_id in users_df['user_id']:
                     attendance_tmp_df['Year'] = year
                     attendance_tmp_df.sort_values(by=['Date'], inplace=True)
                     attendance_tmp_df.groupby(['Month', 'AO'], sort=False).size().unstack().plot(kind='bar',stacked=True)
+
+                    ax = attendance_tmp_df.groupby(['Month', 'AO'], sort=False).size().unstack().plot(kind='bar', stacked=True)
+                    total_count_for_year = attendance_tmp_df.shape[0]
+    
+                    # Add the total count as text on the chart
+                    ax.text(0.95, 0.95, f"Total Attendance: {total_count_for_year}", transform=ax.transAxes, 
+                            fontsize=12, verticalalignment='top', horizontalalignment='right')
+                    
                     plt.title('Number of posts from '+ pax + ' by AO/Month for ' + yearnum)
                     plt.legend(loc = 'center left', bbox_to_anchor=(1, 0.5), frameon = False)
                     plt.ioff()
