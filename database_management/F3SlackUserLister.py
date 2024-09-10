@@ -9,10 +9,8 @@ Usage: F3SlackUserLister.py [db_name] [slack_token]
 '''
 
 import pandas as pd
-import pymysql.cursors
 from slack_sdk import WebClient
 import time
-import os
 import logging
 
 
@@ -26,16 +24,6 @@ def user_lookback(firsttime_run):
         cutoff_ts = current_ts - LOOKBACK_SECONDS
         return cutoff_ts
 
-def init_db(host, port, user, password, region_db):
-    return pymysql.connect(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        db=region_db,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-        )
 
 def database_slack_user_update(region_db, key, firsttime_run, mydb):
     logging.info("Database_slack_user_update for region " + region_db)

@@ -7,37 +7,26 @@ on Q's for each AO and sends it to the AO channel in a Slack message.
 
 from slacker import Slacker
 import pandas as pd
-import pymysql.cursors
 import configparser
 import datetime
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Configure Slack credentials
+config_file_name = '/Users/schaecher/PycharmProjects/config/credentials.ini'
 config = configparser.ConfigParser()
-config.read('/Users/schaecher/PycharmProjects/config/credentials.ini')
-key = config['slack']['prod_key']
+config.read(config_file_name)
 
-# Configure AWS Credentials
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-db = config['aws']['db']
+mydb = DBConnectionManager(config_file_name).connect()
 
 # Set Slack tokens
+key = config['slack']['prod_key']
 slack = Slacker(key)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 try:
     with mydb.cursor() as cursor:

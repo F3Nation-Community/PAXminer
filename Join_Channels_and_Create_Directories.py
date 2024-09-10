@@ -6,21 +6,17 @@ This script ensures all AO and FirstF channels are joined by PAXminer and it als
 
 from slack_sdk import WebClient
 import pandas as pd
-import pymysql.cursors
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
-import configparser
 import os
 import sys
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
 db = sys.argv[1]
+mydb = DBConnectionManager('../config/credentials.ini').connect(db)
+
 region = sys.argv[3]
 
 # Set Slack token
@@ -28,15 +24,7 @@ key = sys.argv[2]
 slack = WebClient(token=key)
 firstf = sys.argv[4] #designated 1st-f channel for the region
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
+
 print("Setting up PAXminer environment for region " + region)
 print("Joining FirstF channel")
 try:

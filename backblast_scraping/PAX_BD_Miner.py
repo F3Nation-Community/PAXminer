@@ -13,13 +13,12 @@ import dateparser
 import pandas as pd
 import pytz
 import re
-import pymysql.cursors
-import configparser
 import sys
 import logging
 import math
 import warnings
 from BD_Update_Utils import determine_db_action, find_match, retrievePreviousBackblasts, DbAction
+from db_connection_manager import DBConnectionManager
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings(
@@ -36,14 +35,8 @@ ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-db = sys.argv[1] # Use this for the multi-region automated update
+db_name = sys.argv[1]  # Use this for the multi-region automated update
+mydb = DBConnectionManager('../config/credentials.ini').connect(db_name)
 
 # Set Slack token
 key = sys.argv[2] # Use this for the multi-region automated update
@@ -52,16 +45,6 @@ slack = WebClient(token=key)
 # Enable rate limited error retries
 rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
 slack.retry_handlers.append(rate_limit_handler)
-
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 # Set epoch and yesterday's timestamp for datetime calculations
 epoch = datetime(1970, 1, 1)

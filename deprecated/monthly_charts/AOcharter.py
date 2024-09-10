@@ -7,13 +7,13 @@ on total posts and beatdowns for each AO and sends it to the 1st F channel in a 
 
 from slack_sdk import WebClient
 import pandas as pd
-import pymysql.cursors
-import configparser
 import datetime
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import configparser
 import sys
 import dataframe_image as dfi
 import seaborn as sns
@@ -21,15 +21,9 @@ import seaborn as sns
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 import plotly.figure_factory as ff
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = config['aws']['db']
 db = sys.argv[1]
+mydb = DBConnectionManager('../../config/credentials.ini').connect(db)
+
 region = sys.argv[3]
 
 # Set Slack token
@@ -40,15 +34,6 @@ firstf = sys.argv[4] #parameter input for designated 1st-f channel for the regio
 rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
 slack.retry_handlers.append(rate_limit_handler)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
 

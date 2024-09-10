@@ -6,31 +6,11 @@ This script executes the monthly PAXcharter backblast queries and data updates f
 
 from slacker import Slacker
 import pandas as pd
-import pymysql.cursors
-import configparser
 import os
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
+from db_connection_manager import DBConnectionManager
 
-# Configure AWS Credentials
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-db = config['aws']['db']
-
-
-#Define AWS Database connection criteria
-mydb1 = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
+mydb1 = DBConnectionManager('../config/credentials.ini').connect()
 
 # Get list of regions and Slack tokens for PAXminer execution
 try:

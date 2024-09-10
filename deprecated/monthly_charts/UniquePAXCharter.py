@@ -7,24 +7,18 @@ on total unique PAX attendance for each AO and sends it to the 1st F channel in 
 
 from slack_sdk import WebClient
 import pandas as pd
-import pymysql.cursors
-import configparser
 import datetime
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import configparser
 import sys
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = config['aws']['db']
 db = sys.argv[1]
+mydb = DBConnectionManager('../../config/credentials.ini').connect(db)
+
 region = sys.argv[3]
 
 # Set Slack token
@@ -32,16 +26,6 @@ key = sys.argv[2]
 slack = WebClient(token=key)
 firstf = sys.argv[4] #parameter input for designated 1st-f channel for the region
 #firstf = 'U0187M4NWG4' #use this for testing messages to a specific user
-
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 total_graphs = 0 # Sets a counter for the total number of graphs made (users with posting data)
 

@@ -8,10 +8,11 @@ on attendance for each member and sends it to them in a private Slack message.
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import pandas as pd
-import pymysql.cursors
-import configparser
 import datetime
 import matplotlib
+
+from db_connection_manager import DBConnectionManager
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sys
@@ -20,16 +21,8 @@ import logging
 # This handler does retries when HTTP status 429 is returned
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
-
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-#db = config['aws']['db']
 db = sys.argv[1]
+mydb = DBConnectionManager('../config/credentials.ini').connect(db)
 
 # Set Slack token
 key = sys.argv[2]
@@ -38,15 +31,6 @@ slack = WebClient(token=key)
 rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
 slack.retry_handlers.append(rate_limit_handler)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 #Get Current Year, Month Number and Name
 d = datetime.datetime.now()

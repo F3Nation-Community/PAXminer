@@ -1,30 +1,21 @@
 import pandas as pd
-import pymysql.cursors
-import os
-from F3SlackUserLister import database_slack_user_update, init_db
+
+from F3SlackUserLister import database_slack_user_update
 from F3SlackChannelLister import database_slack_channel_update
 import logging
+
+from db_connection_manager import DBConnectionManager
+
 
 def database_management_update():
     logging.basicConfig(format=f'%(asctime)s %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
     
-    host = os.environ['host']
-    port = 3306
-    user = os.environ['user']
-    password = os.environ['password']
-    db = "paxminer"
+    db_manager = DBConnectionManager('../config/credentials.ini')
 
-    # #Define AWS Database connection criteria
-    mydb1 = pymysql.connect(
-        host=host,
-        port=port,
-        user=user,
-        password=password,
-        db=db,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor)
+    db_name = "paxminer"
+    mydb1 = db_manager.connect(db_name)
 
     # Get list of regions and Slack tokens for PAXminer execution
     try:
@@ -42,14 +33,15 @@ def database_management_update():
         region_db = row['schema_name']
         
         logging.info('Executing user updates for region ' + region)
+        db_connection = db_manager.connect(region_db)
         try :
-            database_slack_user_update(region_db, key, False, init_db(host, port, user, password, region_db))
+            database_slack_user_update(region_db, key, False, db_connection)
         except Exception as e:
             logging.error("An error occured updating the users for region " + region_db)
             logging.error(e)
 
         try :
-            database_slack_channel_update(region_db, key, init_db(host, port, user, password, region_db))
+            database_slack_channel_update(region_db, key, db_connection)
         except Exception as e:
             logging.error("An error occured updating the channels for region " + region_db)
             logging.error(e)

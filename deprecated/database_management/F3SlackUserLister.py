@@ -9,34 +9,19 @@ Usage: F3SlackUserLister.py [db_name] [slack_token]
 '''
 
 import pandas as pd
-import pymysql.cursors
-import configparser
 import sys
 from slack_sdk import WebClient
 import time
 
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
+from db_connection_manager import DBConnectionManager
+
 db = sys.argv[1]
+mydb = DBConnectionManager('../../config/credentials.ini').connect(db)
 
 # Set Slack token
 key = sys.argv[2]
 slack = WebClient(token=key)
 
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
 
 def user_lookback():
     SECONDS_PER_DAY = 86400
