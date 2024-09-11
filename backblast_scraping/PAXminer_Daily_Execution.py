@@ -47,7 +47,7 @@ try:
         sql = "SELECT * from paxminer.regions WHERE active = 1 AND region REGEXP '^[" + region_regex + "]'"
         cursor.execute(sql)
         regions = cursor.fetchall()
-        regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
+        regions_df = pd.DataFrame(regions, columns=['region', 'slack_token', 'schema_name'])
 finally:
     print('Getting list of regions that use PAXminer...')
 

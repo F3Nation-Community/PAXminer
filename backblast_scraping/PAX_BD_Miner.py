@@ -115,7 +115,7 @@ try:
         sql = "SELECT channel_id, ao FROM aos WHERE backblast = 1 AND archived = 0"
         cursor.execute(sql)
         channels = cursor.fetchall()
-        channels_df = pd.DataFrame(channels, columns={'channel_id', 'ao'})
+        channels_df = pd.DataFrame(channels, columns=['channel_id', 'ao'])
 finally:
     print('Pulling current beatdown records...')
 
@@ -130,7 +130,7 @@ finally:
 
 # Get all channel conversation
 # messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
-messages_df = pd.DataFrame([], columns={'user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id'}) #creates an empty dataframe to append to
+messages_df = pd.DataFrame([], columns=['user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id']) #creates an empty dataframe to append to
 for id in channels_df['channel_id']:
     data = ''
     pages = 1
