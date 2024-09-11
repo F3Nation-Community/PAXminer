@@ -70,7 +70,7 @@ for index, row in aos_df.iterrows():
     day = []
     year = []
     with mydb.cursor() as cursor:
-        sql = "SELECT * FROM beatdown_info WHERE AO = %s AND YEAR(Date) = %s AND MONTH(Date) = %s ORDER BY Date"
+        sql = "SELECT * FROM beatdown_info WHERE AO = %s AND YEAR(Date) = %s AND MONTH(Date) = %s and Q_IS_App != 1 ORDER BY Date"
         val = (ao, yearnum, thismonth)
         cursor.execute(sql, val)
         bd_tmp = cursor.fetchall()
@@ -119,7 +119,7 @@ try:
     day = []
     year = []
     with mydb.cursor() as cursor:
-        sql = "SELECT * FROM beatdown_info WHERE YEAR(Date) = %s AND MONTH(Date) = %s ORDER BY Date"
+        sql = "SELECT * FROM beatdown_info WHERE YEAR(Date) = %s AND MONTH(Date) = %s and Q_IS_App != 1 ORDER BY Date"
         val = (yearnum, thismonth)
         cursor.execute(sql, val)
         bd_tmp2 = cursor.fetchall()
