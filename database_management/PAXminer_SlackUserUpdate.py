@@ -32,7 +32,7 @@ def database_management_update():
             sql = "SELECT * FROM paxminer.regions where active = 1"
             cursor.execute(sql)
             regions = cursor.fetchall()
-            regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
+            regions_df = pd.DataFrame(regions, columns=['region', 'slack_token', 'schema_name'])
     finally:
         logging.info('Getting list of regions that use PAXminer...')
 
