@@ -55,7 +55,7 @@ try:
         sql = "SELECT ao, channel_id FROM aos WHERE backblast = 1 and archived = 0"
         cursor.execute(sql)
         aos = cursor.fetchall()
-        aos_df = pd.DataFrame(aos, columns={'ao', 'channel_id'})
+        aos_df = pd.DataFrame(aos, columns=['ao', 'channel_id'])
 finally:
     print('Now pulling all beatdown records... Stand by...')
 

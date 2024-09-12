@@ -86,7 +86,7 @@ try:
         val = (thismonth, yearnum)
         cursor.execute(sql, val)
         posts = cursor.fetchall()
-        posts_df = pd.DataFrame(posts, columns={'PAX', 'UniqueAOs', 'Posts'})
+        posts_df = pd.DataFrame(posts, columns=['PAX', 'UniqueAOs', 'Posts'])
 finally:
     print('Now pulling all posting records for', region, '... Stand by...')
 
@@ -130,7 +130,7 @@ try:
         val = (yearnum)
         cursor.execute(sql, val)
         posts = cursor.fetchall()
-        posts_df = pd.DataFrame(posts, columns={'PAX', 'UniqueAOs', 'Posts'})
+        posts_df = pd.DataFrame(posts, columns=['PAX', 'UniqueAOs', 'Posts'])
 finally:
     print('Now pulling all posting records for', region, '... Stand by...')
 

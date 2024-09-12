@@ -39,7 +39,7 @@ try:
         sql = "SELECT * FROM paxminer.regions where region = 'Mobile'" # <-- Update this for whatever region is being tested
         cursor.execute(sql)
         regions = cursor.fetchall()
-        regions_df = pd.DataFrame(regions, columns={'region', 'slack_token', 'schema_name'})
+        regions_df = pd.DataFrame(regions, columns=['region', 'slack_token', 'schema_name'])
 finally:
     print('Getting list of regions that use PAXminer...')
 
