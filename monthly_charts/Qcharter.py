@@ -70,7 +70,30 @@ for index, row in aos_df.iterrows():
     day = []
     year = []
     with mydb.cursor() as cursor:
-        sql = "SELECT * FROM beatdown_info WHERE AO = %s AND YEAR(Date) = %s AND MONTH(Date) = %s and Q_IS_App != 1 ORDER BY Date"
+        sql = """
+        select
+            `B`.`bd_date` AS `Date`,
+            `a`.`ao` AS `AO`,
+            `U1`.`user_name` AS `Q`,
+            `U1`.`app` AS `Q_Is_App`,
+            `U2`.`user_name` AS `CoQ`,
+            `B`.`pax_count` AS `pax_count`,
+            `B`.`fngs` AS `fngs`,
+            `B`.`fng_count` AS `fng_count`
+        from
+            (((`beatdowns` `B`
+        left join `users` `U1` on
+            ((`U1`.`user_id` = `B`.`q_user_id`)))
+        left join `users` `U2` on
+            ((`U2`.`user_id` = `B`.`coq_user_id`)))
+        left join `aos` `a` on
+            ((`a`.`channel_id` = `B`.`ao_id`)))
+        WHERE `a`.`ao` = %s AND YEAR(`bd_date`) = %s AND MONTH(`bd_date`) = %s and `U1`.`app` != 1
+        order by
+            `B`.`bd_date`,
+            `a`.`ao`
+        """
+        
         val = (ao, yearnum, thismonth)
         cursor.execute(sql, val)
         bd_tmp = cursor.fetchall()
@@ -119,7 +142,29 @@ try:
     day = []
     year = []
     with mydb.cursor() as cursor:
-        sql = "SELECT * FROM beatdown_info WHERE YEAR(Date) = %s AND MONTH(Date) = %s and Q_IS_App != 1 ORDER BY Date"
+        sql = """
+        select
+            `B`.`bd_date` AS `Date`,
+            `a`.`ao` AS `AO`,
+            `U1`.`user_name` AS `Q`,
+            `U1`.`app` AS `Q_Is_App`,
+            `U2`.`user_name` AS `CoQ`,
+            `B`.`pax_count` AS `pax_count`,
+            `B`.`fngs` AS `fngs`,
+            `B`.`fng_count` AS `fng_count`
+        from
+            (((`beatdowns` `B`
+        left join `users` `U1` on
+            ((`U1`.`user_id` = `B`.`q_user_id`)))
+        left join `users` `U2` on
+            ((`U2`.`user_id` = `B`.`coq_user_id`)))
+        left join `aos` `a` on
+            ((`a`.`channel_id` = `B`.`ao_id`)))
+        WHERE AND YEAR(`bd_date`) = %s AND MONTH(`bd_date`) = %s and `U1`.`app` != 1
+        order by
+            `B`.`bd_date`,
+            `a`.`ao`
+        """
         val = (yearnum, thismonth)
         cursor.execute(sql, val)
         bd_tmp2 = cursor.fetchall()
