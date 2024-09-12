@@ -4,7 +4,6 @@ This script was written by Beaker from F3STL. Questions? @srschaecher on twitter
 This script executes the daily PAXminer backblast queries and data updates for all F3 regions using PAXminer.
 '''
 
-from slacker import Slacker
 import pandas as pd
 import pymysql.cursors
 import configparser
