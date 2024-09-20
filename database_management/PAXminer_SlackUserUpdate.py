@@ -14,6 +14,7 @@ def database_management_update():
     port = 3306
     user = os.environ['user']
     password = os.environ['password']
+    full_run = os.environ.get("full_run")
     db = "paxminer"
 
     # #Define AWS Database connection criteria
@@ -43,7 +44,7 @@ def database_management_update():
         
         logging.info('Executing user updates for region ' + region)
         try :
-            database_slack_user_update(region_db, key, False, init_db(host, port, user, password, region_db))
+            database_slack_user_update(region_db, key, full_run, init_db(host, port, user, password, region_db))
         except Exception as e:
             logging.error("An error occured updating the users for region " + region_db)
             logging.error(e)
