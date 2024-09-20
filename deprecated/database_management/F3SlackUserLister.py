@@ -73,6 +73,9 @@ while True:
     next_cursor = response_metadata.get('next_cursor')
     users = users_response.data['members']
     users_df = pd.json_normalize(users)
+    # Check for profile.start_date and set it to None if not present
+    users_df['profile.start_date'] = users_df['profile'].apply(lambda x: x.get('start_date') if isinstance(x, dict) else None)
+    
     users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot', 'updated', 'is_admin', 'is_owner', 'profile.start_date']]
     users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email', 'is_bot': 'app'})
     # Update any null user_names with the real_name values
