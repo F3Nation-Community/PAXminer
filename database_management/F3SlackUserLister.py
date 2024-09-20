@@ -50,7 +50,7 @@ def sanitize_start_date(date_str):
     except (ValueError, TypeError):
         # Return None if the date is invalid
         return None
-
+    
 def database_slack_user_update(region_db, key, firsttime_run, mydb):
     logging.info("Database_slack_user_update for region " + region_db)
 
@@ -69,14 +69,15 @@ def database_slack_user_update(region_db, key, firsttime_run, mydb):
         next_cursor = response_metadata.get('next_cursor')
         users = users_response.data['members']
         users_df = pd.json_normalize(users)
-        
         if 'profile.start_date' not in users_df.columns:
             users_df['profile.start_date'] = None
-            
+
         users_df = users_df[['id', 'profile.display_name', 'profile.real_name', 'profile.phone', 'profile.email', 'is_bot', 'updated', 'is_admin', 'is_owner', 'profile.start_date']]
         users_df = users_df.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name', 'profile.phone' : 'phone', 'profile.email' : 'email', 'is_bot': 'app'})
         # Update any null user_names with the real_name values
         users_df['email'].fillna("None", inplace=True)
+        users_df['is_owner'].fillna(False, inplace=True)
+        users_df['is_admin'].fillna(False, inplace=True)
 
         # Now connect to the AWS database and insert some rows!
         try:
@@ -106,16 +107,16 @@ def database_slack_user_update(region_db, key, firsttime_run, mydb):
                     result = cursor.rowcount
                     if result == 1:
                         logging.info("Record inserted for user: " + user_name_tmp)
-                        # try:
-                        #     slack.chat_postMessage(channel='paxminer_logs', text=" - New PAX record created for " + user_name_tmp)
-                        # except:
-                        #     pass
+                        try:
+                            slack.chat_postMessage(channel='paxminer_logs', text=" - New PAX record created for " + user_name_tmp)
+                        except:
+                            pass
                     elif result == 2:
                         logging.info("Record updated for user: " + user_name_tmp)
-                        # try:
-                        #     slack.chat_postMessage(channel='paxminer_logs', text=" - PAX record updated for " + user_name_tmp)
-                        # except:
-                        #     pass
+                        try:
+                            slack.chat_postMessage(channel='paxminer_logs', text=" - PAX record updated for " + user_name_tmp)
+                        except:
+                            pass
 
         finally:
             pass
