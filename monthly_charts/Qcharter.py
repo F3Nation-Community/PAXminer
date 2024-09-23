@@ -160,7 +160,7 @@ try:
             ((`U2`.`user_id` = `B`.`coq_user_id`)))
         left join `aos` `a` on
             ((`a`.`channel_id` = `B`.`ao_id`)))
-        WHERE AND YEAR(`bd_date`) = %s AND MONTH(`bd_date`) = %s and `U1`.`app` != 1
+        WHERE YEAR(`bd_date`) = %s AND MONTH(`bd_date`) = %s and `U1`.`app` != 1
         order by
             `B`.`bd_date`,
             `a`.`ao`
