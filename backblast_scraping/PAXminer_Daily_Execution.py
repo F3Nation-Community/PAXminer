@@ -4,7 +4,6 @@ This script was written by Beaker from F3STL. Questions? @srschaecher on twitter
 This script executes the daily PAXminer backblast queries and data updates for all F3 regions using PAXminer.
 '''
 
-from slacker import Slacker
 import pandas as pd
 import pymysql.cursors
 import configparser
@@ -44,7 +43,7 @@ mydb1 = pymysql.connect(
 # Get list of regions and Slack tokens for PAXminer execution
 try:
     with mydb1.cursor() as cursor:
-        sql = "SELECT * from paxminer.regions WHERE active = 1 AND region REGEXP '^[" + region_regex + "]'"
+        sql = "SELECT * from paxminer.regions WHERE active = 1 AND region REGEXP '^[" + region_regex + "]' and scrape_backblasts = 1"
         cursor.execute(sql)
         regions = cursor.fetchall()
         regions_df = pd.DataFrame(regions, columns=['region', 'slack_token', 'schema_name'])

@@ -60,13 +60,29 @@ yearnum = d.strftime("%Y")
 
 try:
     with mydb.cursor() as cursor:
-        sql = "select PAX, count(distinct AO) as UniqueAOs, count(Date) as Posts\
-        from attendance_view \
-        where MONTH(Date) = %s \
-        AND YEAR(Date) = %s \
-        group by PAX \
-        order by count(Date) desc\
-        limit 20"
+        sql = """
+        select PAX, count(distinct AO) as UniqueAOs, count(1) as Posts FROM (
+            select
+                `bd`.`date` AS `Date`,
+                `ao`.`ao` AS `AO`,
+                `u`.`user_name` AS `PAX`
+            from
+                (((`bd_attendance` `bd`
+            left join `aos` `ao` on
+                ((`bd`.`ao_id` = `ao`.`channel_id`)))
+            left join `users` `u` on
+                ((`bd`.`user_id` = `u`.`user_id`))))
+            where `u`.app != 1
+            order by
+                `bd`.`date` desc,
+                `ao`.`ao`
+        ) a
+        where MONTH(Date) = %s
+        AND YEAR(Date) = %s
+        group by PAX
+        order by count(1) desc
+        limit 20
+        """
         val = (thismonth, yearnum)
         cursor.execute(sql, val)
         posts = cursor.fetchall()
@@ -89,12 +105,28 @@ print('Total graphs made:', total_graphs)
 
 try:
     with mydb.cursor() as cursor:
-        sql = "select PAX, count(distinct AO) as UniqueAOs, count(Date) as Posts\
-        from attendance_view \
-        WHERE YEAR(Date) = %s \
-        group by PAX \
-        order by count(Date) desc\
-        limit 20"
+        sql = """
+        select PAX, count(distinct AO) as UniqueAOs, count(1) as Posts FROM (
+            select
+                `bd`.`date` AS `Date`,
+                `ao`.`ao` AS `AO`,
+                `u`.`user_name` AS `PAX`
+            from
+                (((`bd_attendance` `bd`
+            left join `aos` `ao` on
+                ((`bd`.`ao_id` = `ao`.`channel_id`)))
+            left join `users` `u` on
+                ((`bd`.`user_id` = `u`.`user_id`))))
+            where `u`.app != 1
+            order by
+                `bd`.`date` desc,
+                `ao`.`ao`
+        ) a
+        where YEAR(Date) = %s
+        group by PAX
+        order by count(1) desc
+        limit 20
+        """
         val = (yearnum)
         cursor.execute(sql, val)
         posts = cursor.fetchall()
