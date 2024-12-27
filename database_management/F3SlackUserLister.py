@@ -83,7 +83,18 @@ def database_slack_user_update(region_db, key, firsttime_run, mydb):
         try:
             with mydb.cursor() as cursor:
                 for index, row in users_df[users_df['updated'] > cutoff_ts].iterrows():
-                    sql = "INSERT INTO users (user_id, user_name, real_name, phone, email, start_date, app, json) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_name=%s, real_name=%s, phone=%s, email=%s, start_date=%s, app=%s,json=%s"
+                    sql = """
+                    INSERT INTO users (user_id, user_name, real_name, phone, email, start_date, app, json)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE 
+                        user_name = VALUES(user_name),
+                        real_name = VALUES(real_name),
+                        phone = VALUES(phone),
+                        email = VALUES(email),
+                        start_date = IF(start_date IS NULL, VALUES(start_date), start_date),
+                        json = VALUES(json)
+                    """
+                    # sql = "INSERT INTO users (user_id, user_name, real_name, phone, email, start_date, app, json) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE user_name=%s, real_name=%s, phone=%s, email=%s, start_date=%s, json=%s"
                     user_id_tmp = row['user_id']
                     user_name_tmp = row['user_name']
                     real_name_tmp = row['real_name']
@@ -101,7 +112,7 @@ def database_slack_user_update(region_db, key, firsttime_run, mydb):
                     phone_tmp = row['phone']
                     email_tmp = row['email']
                     app_tmp = row['app']
-                    val = (user_id_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, start_date, app_tmp, js, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, start_date, app_tmp, js)
+                    val = (user_id_tmp, user_name_tmp, real_name_tmp, phone_tmp, email_tmp, start_date, app_tmp, js)
                     cursor.execute(sql, val)
                     mydb.commit()
                     result = cursor.rowcount
