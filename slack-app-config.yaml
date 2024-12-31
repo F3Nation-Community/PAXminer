@@ -1,0 +1,26 @@
+display_information:
+  name: PAXMiner
+  description: "Slack app that assists F3 regions in collecting backblasts, managing their PAXminer DB, and sending monthly charts"
+  background_color: '#2c2d30'
+features:
+  bot_user:
+    display_name: PAXMiner
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - channels:join
+      - channels:read
+      - chat:write
+      - chat:write.public
+      - files:write
+      - im:write
+      - incoming-webhook
+      - users.profile:read
+      - users:read.email
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
