@@ -20,6 +20,7 @@ oauth_config:
       - incoming-webhook
       - users.profile:read
       - users:read.email
+      - users:read
 settings:
   org_deploy_enabled: false
   socket_mode_enabled: false
