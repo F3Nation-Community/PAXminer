@@ -60,6 +60,7 @@ If you don't already have one, you will need to first create a new Slack workspa
 
 ## Feedback
 - Submit a PR with your feedback!
+- Would it make sense to develop an optional slack-bot to better corral the data to align with the desired schema?  Could normalize the data to be scraped from the miner and still gives Qs flexibility to do a "blurb" after their attendance data
 
 ## Contribute
 
