@@ -13,7 +13,6 @@ import logging
 import math
 import warnings
 from BD_Update_Utils import determine_db_action, find_match, retrievePreviousBackblasts, DbAction
-from paxminer_models import Config
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings(

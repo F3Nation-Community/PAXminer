@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import sys
 from PAX_BD_Miner import run_pax_bd_miner, create_database_connection
-from paxminer_models import Config
 
 # Set RegEx range for which regions will be queried. Command line input parameter 1 should be a regex range (e.g. A-M) which will search for all regions starting with A through M.
 region_regex = sys.argv[1]
