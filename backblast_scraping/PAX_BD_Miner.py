@@ -518,7 +518,6 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                     user_name = 'Q'
                 q_error_text = "Paxminer failed to import your latest backblast.\n"
                 q_message_end = "Backblast message posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>)\n"
-                # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
 
                 if database_action == DbAction.IGNORE:
                     logging.debug("Encountered a bblast already recorded and has not been modified. Skipping import")
@@ -526,8 +525,8 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                 
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                    print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
-                    pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". bd: ", bd_date, "cutoff:", cutoff_date)
+                    pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ".\n"
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Q is not present or not tagged correctly. Please ensure the Q is tagged using @PAX_NAME \n"
                         send_q_msg = 2
@@ -536,8 +535,8 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                     pass
                 if pax_count == -1:
                     logging.warning("Count error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                    print('Backblast error on Count - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q.")
-                    pm_log_text += " - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    print('Backblast error on Count - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ".")
+                    pm_log_text += " - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ".\n"
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Count is not present or not entered correctly. The correct syntax is Count: XX - Use digits please. \n"
                         send_q_msg = 2
@@ -547,8 +546,8 @@ def run_pax_bd_miner(host, port, user, password, db, key):
             
                 if not isValidDate(bd_date, today):
                     logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                    print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
-                    pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". bd: ", bd_date, "cutoff:", cutoff_date)
+                    pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ".\n"
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future, a date with the time appended, or a date more than one month on the past.\n"
                         send_q_msg = 2
@@ -624,10 +623,10 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                         logging.error("An error occured determining to send an error message: %s")
                         logging.error(error)
     
-                # if send_q_msg == 1:
-                #     slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
-                # if send_q_msg == 2:
-                #     slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
+                if send_q_msg == 1:
+                    slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
+                if send_q_msg == 2:
+                    slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
 
             sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
             cursor.execute(sql3)
@@ -670,10 +669,10 @@ def run_pax_bd_miner(host, port, user, password, db, key):
     logging.info("Beatdown execution complete for region " + db)
     logging.info(f"Time elapsed: {time.time() - current_ts}")
 
-    # try:
-    #     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
-    # except:
-    #     print("Slack log message error - not posted")
-    #     logging.error("Slack log message error - not posted")
-    #     pass
+    try:
+        slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
+    except:
+        print("Slack log message error - not posted")
+        logging.error("Slack log message error - not posted")
+        pass
     logging.info('PAX_BD_Miner.py Finished')
