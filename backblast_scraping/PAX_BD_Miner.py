@@ -366,8 +366,11 @@ def run_pax_bd_miner(host, port, user, password, db, key):
     # Retrieve backblast entries from regional database for comparison to identify new or updated posts
     try:
         previously_saved_beatdowns = retrievePreviousBackblasts(mydb, cutoff_ts)
+    except Exception as e:
+        logging.error("Error: Unable to retrieve previously saved beatdowns")
+        logging.error(e)
     finally:
-        print('Looking for new backblasts from Slack...')
+        logging.info('Looking for new backblasts from Slack...')
 
     # Get all channel conversation
     messages_df = pd.DataFrame([], columns=['user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id']) #creates an empty dataframe to append to
@@ -382,7 +385,9 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                 response_metadata = response.get('response_metadata', {})
                 try:
                     next_cursor = response_metadata.get('next_cursor')
-                except:
+                except Exception as e:
+                    logging.error("Error: An unknown error occurred")
+                    logging.error(e)
                     print("Hello World")
                     pass
                 messages = response.data['messages']
@@ -397,8 +402,9 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                     temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
                     temp_df["channel_id"] = id
                     messages_df = pd.concat([messages_df, temp_df], ignore_index=True)
-            except:
+            except Exception as e:
                 logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
+                logging.error(e)
                 pm_log_text += "Error: Unable to access Slack channel " + id + ", " + ao + " in region " + db + "\n"
             if next_cursor != "None":
                 # Keep going from next offset.
