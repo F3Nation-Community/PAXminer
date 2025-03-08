@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-'''
-This script was written by Beaker from F3STL. Questions? @srschaecher on twitter or srschaecher@gmail.com.
-This script queries Slack for User, Channel, and Conversation (channel) history and then parses all conversations to find Backblasts.
-All Backblasts are then parsed to collect the BEATDOWN information for any given workout and puts those attendance records into the AWS F3STL database for recordkeeping.
-'''
 
 import warnings
 from slack_sdk import WebClient
@@ -14,12 +9,11 @@ import pandas as pd
 import pytz
 import re
 import pymysql.cursors
-import configparser
-import sys
 import logging
 import math
 import warnings
 from BD_Update_Utils import determine_db_action, find_match, retrievePreviousBackblasts, DbAction
+from paxminer_models import Config
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings(
@@ -28,174 +22,15 @@ warnings.filterwarnings(
 )
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
+
 MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
 LOOKBACK_DAYS = 7
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
 ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
+pat = r'(?<=\<).+?(?=>)'
 
 pd.options.mode.chained_assignment = None  # default='warn'
-
-# Configure AWS credentials
-config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
-host = config['aws']['host']
-port = int(config['aws']['port'])
-user = config['aws']['user']
-password = config['aws']['password']
-db = sys.argv[1] # Use this for the multi-region automated update
-
-# Set Slack token
-key = sys.argv[2] # Use this for the multi-region automated update
-slack = WebClient(token=key)
-
-# Enable rate limited error retries
-rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
-slack.retry_handlers.append(rate_limit_handler)
-
-#Define AWS Database connection criteria
-mydb = pymysql.connect(
-    host=host,
-    port=port,
-    user=user,
-    password=password,
-    db=db,
-    charset='utf8mb4',
-    cursorclass=pymysql.cursors.DictCursor)
-
-# Set epoch and yesterday's timestamp for datetime calculations
-epoch = datetime(1970, 1, 1)
-yesterday = datetime.now() - timedelta(days = 1)
-today = datetime.now()
-cutoff_date = today - timedelta(days = 7) # This tells BDminer to go back up to N days for message age
-current_ts = time.time()
-cutoff_ts = current_ts - LOOKBACK_SECONDS
-cutoff_date = cutoff_date.strftime('%Y-%m-%d')
-date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
-
-# Set up logging
-logging.basicConfig(filename='../logs/BD_PAX_miner.log',
-                            filemode = 'a',
-                            format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
-                            datefmt = '%Y-%m-%d %H:%M:%S',
-                            level = logging.INFO)
-logging.info(f"Beginning BD+Paxminer {current_ts}")
-logging.info("Running combined BD+PAXminer for " + db)
-pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
-
-# Make users Data Frame
-column_names = ['user_id', 'user_name', 'real_name']
-users_df = pd.DataFrame(columns = column_names)
-users_df.loc[len(users_df.index)] = ['APP', 'BackblastApp', 'BackblastApp']
-data = ''
-while True:
-    users_response = slack.users_list(limit=1000, cursor=data)
-    response_metadata = users_response.get('response_metadata', {})
-    next_cursor = response_metadata.get('next_cursor')
-    users = users_response.data['members']
-    users_df_tmp = pd.json_normalize(users)
-    users_df_tmp = users_df_tmp[['id', 'profile.display_name', 'profile.real_name']]
-    users_df_tmp = users_df_tmp.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name'})
-    users_df = users_df.append(users_df_tmp, ignore_index=True)
-    if next_cursor:
-        # Keep going from next offset.
-        #print('next_cursor =' + next_cursor)
-        data = next_cursor
-    else:
-        break
-for index, row in users_df.iterrows():
-    un_tmp = row['user_name']
-    rn_tmp = row['real_name']
-    if un_tmp == "" :
-        row['user_name'] = rn_tmp
-
-# Retrieve Channel List from AWS database (backblast = 1 denotes which channels to search for backblasts)
-try:
-    with mydb.cursor() as cursor:
-        sql = "SELECT channel_id, ao FROM aos WHERE backblast = 1 AND archived = 0"
-        cursor.execute(sql)
-        channels = cursor.fetchall()
-        channels_df = pd.DataFrame(channels, columns=['channel_id', 'ao'])
-finally:
-    print('Pulling current beatdown records...')
-
-users_dict = users_df[["user_id", "user_name"]].set_index("user_id").to_dict()["user_name"]
-aos_dict = channels_df[["channel_id", "ao"]].set_index("channel_id").to_dict()["ao"]
-
-# Retrieve backblast entries from regional database for comparison to identify new or updated posts
-try:
-    previously_saved_beatdowns = retrievePreviousBackblasts(mydb, cutoff_ts)
-finally:
-    print('Looking for new backblasts from Slack...')
-
-# Get all channel conversation
-# messages_df = pd.DataFrame([]) #creates an empty dataframe to append to
-messages_df = pd.DataFrame([], columns=['user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id']) #creates an empty dataframe to append to
-for id in channels_df['channel_id']:
-    data = ''
-    pages = 1
-    while True:
-        try:
-            #print("Checking channel " + id) # <-- Use this if debugging any slack channels throwing errors
-            response = slack.conversations_history(channel=id, cursor=data)
-            response_metadata = response.get('response_metadata', {})
-            try:
-                next_cursor = response_metadata.get('next_cursor')
-            except:
-                pass
-            messages = response.data['messages']
-            temp_df = pd.json_normalize(messages)
-            try:
-                temp_df = temp_df[['user', 'type', 'text', 'ts', 'edited.ts']]
-            except:
-                temp_df = temp_df[['user', 'type', 'text', 'ts']]
-                temp_df['edited.ts'] = "NA"
-            finally:
-                temp_df["user"]=temp_df["user"].fillna("APP")
-                temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
-                temp_df["channel_id"] = id
-                messages_df = messages_df.append(temp_df, ignore_index=True)
-        except:
-            print("Error: Unable to access Slack channel:", id, "in region:",db)
-            logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
-            pm_log_text += "Error: Unable to access Slack channel " + id + " in region " + db + "\n"
-        if next_cursor != "None":
-            # Keep going from next offset.
-            data = next_cursor
-            if pages == 1: ## Total number of pages to query from Slack
-                break
-            pages = pages + 1
-        else:
-            break
-
-# Calculate Date and Time columns
-msg_date = []
-msg_time = []
-for ts in messages_df['timestamp']:
-        seconds_since_epoch = float(ts)
-        dt = epoch + timedelta(seconds=seconds_since_epoch)
-        dt = dt.replace(tzinfo=pytz.utc)
-        dt = dt.astimezone(pytz.timezone('America/Chicago'))
-        msg_date.append(dt.strftime('%Y-%m-%d'))
-        msg_time.append(dt.strftime('%H:%M:%S'))
-messages_df['msg_date'] = msg_date
-messages_df['time'] = msg_time
-
-
-# Merge the data frames into 1 joined DF
-f3_df = pd.merge(messages_df, users_df)
-f3_df = pd.merge(f3_df,channels_df)
-f3_df = f3_df[['timestamp', 'ts_edited', 'msg_date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
-f3_df['ts_edited'] = f3_df['ts_edited'].fillna('NA')
-
-# Now find only backblast messages (either "Backblast" or "Back Blast") - note .casefold() denotes case insensitivity - and pull out the PAX user ID's identified within
-# This pattern finds username links followed by commas: pat = r'(?<=\\xa0).+?(?=,)'
-pat = r'(?<=\<).+?(?=>)' # This pattern finds username links within brackets <>
-bd_df = pd.DataFrame([])
-pax_attendance_df = pd.DataFrame([])
-warnings.filterwarnings("ignore", category=DeprecationWarning) #This prevents displaying the Deprecation Warning that is present for the RegEx lookahead function used below
-
-
 
 def retrieve_q_line(backblast):
     # Find the Q information
@@ -215,7 +50,7 @@ def retrieve_q_line(backblast):
 
 def retrieve_count_line(backblast):
     # Combine the regex patterns for 'Count' and 'Total'
-    patterns = [r'(?<=\n)\*?(?i)Count\*?:\*?.+?(?:$|\n)', r'(?<=\n)\*?(?i)Total\*?:\*?.+?(?=\n)']
+    patterns = [r'(?i)(?<=\n)\*?Count\*?:\*?.+?(?:$|\n)', r'(?i)(?<=\n)\*?Total\*?:\*?.+?(?=\n)']
     pax_count = None
 
     # Search for the patterns in the backblast text
@@ -234,23 +69,23 @@ def retrieve_count_line(backblast):
     return False, -1
 
 def retrieve_fng_line(backblast):
-     # Find the FNGs line
+    # Find the FNGs line
     fngline = re.findall(r'(?<=\n)\*?FNGs\*?:\*?.+?(?=\n)', str(backblast), re.MULTILINE)  # This is regex looking for \nFNGs: with or without an * before Q
     if fngline:
         fngline = fngline[0]
-        fngs = re.sub('\*?FNGs\*?:\s?', '', str(fngline))
+        fngs = re.sub(r'\*?FNGs\*?:\s?', '', str(fngline))
         fngs = fngs.strip()
         return True, fngs
     else:
         fngs = 'None listed'
         return False, fngs
     
-def retrieve_date_line(backblast):
+def retrieve_date_line(backblast, msg_date):
     #Find the Date:
     dateline = re.findall(r'(?<=\n)Date:.+?(?=\n)', str(backblast), re.IGNORECASE)
     if dateline:
         dateline = re.sub('xa0', ' ', str(dateline), flags=re.I)
-        dateline = re.sub("Date:\s?", '', str(dateline), flags=re.I)
+        dateline = re.sub(r"Date:\s?", '', str(dateline), flags=re.I)
         dateline = dateparser.parse(dateline) #dateparser is a flexible date module that can understand many different date formats
         if dateline is None:
             date_tmp = '2099-12-31' #sets a date many years in the future just to catch this error later (needs to be a future date)
@@ -280,14 +115,14 @@ def retrieve_ao_line(backblast):
         return False, 'Unknown'
     
     
-def bd_info(text_tmp):
+def bd_info(text_tmp, users_dict, aos_dict, timestamp, ts_edited, msg_date, ao_tmp, user_name, user_id):
     q_found, qid, coqid = retrieve_q_line(text_tmp)
 
     count_found, pax_count = retrieve_count_line(text_tmp)
-   
+
     fng_found, fngs = retrieve_fng_line(text_tmp)
 
-    date_found, date_tmp = retrieve_date_line(text_tmp)
+    date_found, date_tmp = retrieve_date_line(text_tmp, msg_date)
     
     ao_found, parsed_ao_channel = retrieve_ao_line(text_tmp)
 
@@ -304,8 +139,7 @@ def bd_info(text_tmp):
 # Adds the Q lines to the pax list as well.
 # Deduplicates the list to account for PAX listed multiple lines, or a Q who is also listed in the PAX list.
 def list_pax(beatdown_text):
-    #paxline = [line for line in beatdown_text.split('\n') if 'pax'.casefold() in line.casefold()]
-    paxline = re.findall(r'(?<=\n)\*?(?i)PAX\*?:\*?.+?(?=\n)', str(beatdown_text), re.MULTILINE) #This is a case insensitive regex looking for \nPAX with or without an * before PAX
+    paxline = re.findall(r'(?i)(?<=\n)\*?PAX\*?:\*?.+?(?=\n)', str(beatdown_text), re.MULTILINE) #This is a case insensitive regex looking for \nPAX with or without an * before PAX
     
     pax = re.findall(pat, str(paxline), re.MULTILINE)
     pax = [re.sub(r'@','', i) for i in pax]
@@ -360,23 +194,23 @@ def parse_backblast(backblast: str, users_dict, aos_dict) -> str:
 def containsBackblastKeyword(potential_backblast): 
     return (
         re.findall('^Slackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Backblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Backblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Back blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Slack blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Sackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Slackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Slack blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Sackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Slackbast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Slackbast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Sackdraft', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^\*Sackdraft', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
-        re.findall('^Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE)
+        re.findall(r'^\*Backblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Backblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Back blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Slack blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Sackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Slackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Slack blast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Sackblast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Slackbast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Slackbast', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Sackdraft', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^\*Sackdraft', potential_backblast, re.IGNORECASE | re.MULTILINE) or 
+        re.findall(r'^Back Blast', potential_backblast, re.IGNORECASE | re.MULTILINE)
     )
 
-def isValidDate(date):
+def isValidDate(date, today):
     lookback_valid_date = (today - timedelta(days = ALLOWABLE_DAYS_BACKBLAST_DATE_VALID )).strftime('%Y-%m-%d')
     forward_valid_date = (today + timedelta(days = 2)).strftime('%Y-%m-%d')
 
@@ -392,7 +226,7 @@ def isValidDate(date):
 # Taking a dataframe of beatdown attendance, inserts these records into the database.
 # If the database action is 'UPDATE', we clear out all the records that were associated with this beatdown previous to inserting.
 # This prevents extra entries, in the scenario where 1) PAX that were mistakenly added, or 2) if one of the compound keys changed ( such as ao or q )
-def insert_beatdown_attendance(dbConn, cursor, beatdown_attendance, database_action, beatdownkey):
+def insert_beatdown_attendance(dbConn, cursor, beatdown_attendance, database_action, beatdownkey, cutoff_date):
     inserts = 0
     try:
         if database_action == DbAction.UPDATE:
@@ -443,236 +277,398 @@ def safe_cast(val, to_type, default=None):
     except (ValueError, TypeError):
         return default
 
-# Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
-for index, row in f3_df.iterrows():
-    ao_tmp = row['channel_id']
-    timestamp = row['timestamp']
-    ts_edited = row['ts_edited']
-    msg_date = row['msg_date']
-    text_tmp = row['text']
-    text_tmp = re.sub('_\\xa0', ' ', str(text_tmp))
-    text_tmp = re.sub('\\xa0', ' ', str(text_tmp))
-    text_tmp = re.sub('_\*', '', str(text_tmp))
-    text_tmp = re.sub('\*_', '', str(text_tmp))
-    text_tmp = re.sub('\*', '', str(text_tmp))
-    user_name = row['user_name']
-    user_id = row['user_id']
+def create_database_connection(host, port, user, password, db):
+    """Creates and returns a database connection."""
+    try:
+        mydb = pymysql.connect(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            db=db,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        return mydb
+    except pymysql.MySQLError as e:
+        logging.error(f"Database connection error: {e}")
+        raise      
 
-    # Backblast criteria one. Be over the minimum length and contain the backblast keyword
-    if (len(str(text_tmp)) >= len(MIN_BACKBLAST)) and containsBackblastKeyword(text_tmp):
-        line_matches, new_row = bd_info(text_tmp)
+def run_pax_bd_miner(host, port, user, password, db, key):
+    
+    slack = WebClient(token=key)
 
-        # Backblast criteria two. Besides the backblast keyword, contain one other properly formatted line.
-        if line_matches >= 1:
-            if float(new_row["timestamp"]) > float(cutoff_ts):
-                upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
+    # Enable rate limited error retries
+    rate_limit_handler = RateLimitErrorRetryHandler(max_retry_count=5)
+    slack.retry_handlers.append(rate_limit_handler)
 
-                new_row["database_action"] = upsertAction
-                
-                bd_df = bd_df.append(new_row, ignore_index = True)
+    #Define AWS Database connection criteria
+    mydb = create_database_connection(host, port, user, password, db)
 
-# Now connect to the AWS database and insert some rows!
-try:
-    with mydb.cursor() as cursor:
-        for index, row in bd_df.iterrows():
-            qc = 1
-            send_q_msg = 0
-            
-            update_sql = """
-                UPDATE beatdowns 
-                SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s, backblast_parsed=%s
-                WHERE timestamp=%s
-                LIMIT 1
-            """
-            insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            
-            timestamp = row['timestamp']
-            ts_edited = row['ts_edited']
-            channel_id = row['channel_id']
-            msg_date = row['msg_date']
-            bd_date = row['bd_date']
-            q_user_id = row['q_user_id']
-            coq_user_id = row['coq_user_id']
-            pax_count = row['pax_count']
-            backblast = row['backblast']
-            user_name = row['user_name']
-            user_id = row['user_id']
-            fngs = row['fngs']
-            msg_link = slack.chat_getPermalink(channel=channel_id, message_ts=timestamp)["permalink"]
-            parsed_ao_channel = row['parsed_ao_channel_id']
-            database_action = row["database_action"]
-            backblast_parsed = row['backblast_parsed']
-            
-            if parsed_ao_channel in channels_df["channel_id"].values :
-                ao_id = parsed_ao_channel
-            else : 
-                ao_id = channel_id
-            
-            val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed)
-            # for Slackblast users, set the user_id as the Q
-            appnames = ['slackblast', 'Slackblast']
-            if user_name in appnames:
-                user_id = q_user_id
-                user_name = 'Q'
-            q_error_text = "Paxminer failed to import your latest backblast.\n"
-            q_message_end = "Backblast message posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>)\n"
-            # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
+    # Set epoch and yesterday's timestamp for datetime calculations
+    epoch = datetime(1970, 1, 1)
+    today = datetime.now()
+    cutoff_date = today - timedelta(days = 7)
+    current_ts = time.time()
+    cutoff_ts = current_ts - LOOKBACK_SECONDS
+    cutoff_date = cutoff_date.strftime('%Y-%m-%d')
+    date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
 
-            if database_action == DbAction.IGNORE:
-                logging.debug("Encountered a bblast already recorded and has not been modified. Skipping import")
-                continue
-            
-            if q_user_id == 'NA':
-                logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
-                pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                if user_id != 'APP':
-                    q_error_text += " - ERROR: The Q is not present or not tagged correctly. Please ensure the Q is tagged using @PAX_NAME \n"
-                    send_q_msg = 2
-                qc = 0
-            else:
-                pass
-            if pax_count == -1:
-                logging.warning("Count error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                print('Backblast error on Count - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q.")
-                pm_log_text += " - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                if user_id != 'APP':
-                    q_error_text += " - ERROR: The Count is not present or not entered correctly. The correct syntax is Count: XX - Use digits please. \n"
-                    send_q_msg = 2
-                qc = 0
-            else:
-                pass
-        
-            if not isValidDate(bd_date):
-                logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
-                pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
-                if user_id != 'APP':
-                    q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future, a date with the time appended, or a date more than one month on the past.\n"
-                    send_q_msg = 2
-                qc = 0
-            
-            if qc == 1:
-                try :
-                    if database_action == DbAction.UPDATE :
-                        cursor.execute(update_sql, val + (timestamp,))
-                    else:
-                        cursor.execute(insert_sql, val)
-                    
-                    mydb.commit()
-                except Exception as error:
-                    print("An error occurred writing to the datastore", error)
-                    logging.error("An error occured writing to the datastore: %s", error)
+    # Set up logging
+    logging.basicConfig(format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
+                            datefmt = '%Y-%m-%d %H:%M:%S',
+                            level = logging.INFO)
+    logging.info(f"Beginning BD+Paxminer {current_ts}")
+    logging.info("Running combined BD+PAXminer for " + db)
+    pm_log_text = date_time + " CDT: Executing hourly PAXminer run for " + db + "\n"
 
-                if cursor.rowcount == 1:
-                    print(cursor.rowcount, "records inserted.")
-                    print('Beatdown Date:', bd_date)
-                    print('Message Posting Date:', msg_date)
-                    print('AO:', ao_id)
-                    print('Q:', q_user_id)
-                    print('Co-Q', coq_user_id)
-                    print('Pax Count:',pax_count)
-                    print('fngs:', fngs)
-                    if database_action == DbAction.UPDATE :
-                        pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
-                        if user_id != 'APP':
-                            q_success_text = "Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
-                            send_q_msg = 1
-                    else:
-                        pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
-                        if user_id != 'APP':
-                            q_success_text = "Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
-                            send_q_msg = 1
-                    
-                    logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
+    # Make users Data Frame
+    column_names = ['user_id', 'user_name', 'real_name']
+    users_df = pd.DataFrame(columns = column_names)
+    users_df.loc[len(users_df.index)] = ['APP', 'BackblastApp', 'BackblastApp']
+    data = ''
+    while True:
+        try:
+            users_response = slack.users_list(limit=1000, cursor=data)
+        except Exception as e:
+            logging.error(e)
+            return
+        response_metadata = users_response.get('response_metadata', {})
+        next_cursor = response_metadata.get('next_cursor')
+        users = users_response.data['members']
+        users_df_tmp = pd.json_normalize(users)
+        users_df_tmp = users_df_tmp[['id', 'profile.display_name', 'profile.real_name']]
+        users_df_tmp = users_df_tmp.rename(columns={'id' : 'user_id', 'profile.display_name' : 'user_name', 'profile.real_name' : 'real_name'})
+        users_df = pd.concat([users_df, users_df_tmp], ignore_index=True)
+        if next_cursor:
+            # Keep going from next offset.
+            data = next_cursor
+        else:
+            break
+    for index, row in users_df.iterrows():
+        un_tmp = row['user_name']
+        rn_tmp = row['real_name']
+        if un_tmp == "" :
+            row['user_name'] = rn_tmp
 
-                    pax = list_pax(backblast)
+    # Retrieve Channel List from AWS database (backblast = 1 denotes which channels to search for backblasts)
+    try:
+        with mydb.cursor() as cursor:
+            sql = "SELECT channel_id, ao FROM aos WHERE backblast = 1 AND archived = 0"
+            cursor.execute(sql)
+            channels = cursor.fetchall()
+            channels_df = pd.DataFrame(channels, columns=['channel_id', 'ao'])
+    finally:
+        print('Pulling current beatdown records...')
 
-                    if pax:
-                        logging.info("Inserting PAX attendance for AO: %s, Date: %s", ao_id, bd_date)
-                        pax_df = pd.DataFrame(pax)
-                        pax_df['timestamp'] = timestamp
-                        pax_df['ts_edited'] = ts_edited
-                        pax_df.columns =['user_id', 'timestamp', 'ts_edited']
+    users_dict = users_df[["user_id", "user_name"]].set_index("user_id").to_dict()["user_name"]
+    aos_dict = channels_df[["channel_id", "ao"]].set_index("channel_id").to_dict()["ao"]
 
-                        pax_df['ao'] = ao_id
-                        pax_df['bd_date'] = bd_date
-                        pax_df['msg_date'] = msg_date
-                        pax_df['q_user_id'] = q_user_id
-                        pax_df["coq_user_id"] = coq_user_id
-                        inserts = insert_beatdown_attendance(mydb, cursor, pax_df, database_action, timestamp)
-                        mydb.commit()
+    # Retrieve backblast entries from regional database for comparison to identify new or updated posts
+    try:
+        previously_saved_beatdowns = retrievePreviousBackblasts(mydb, cutoff_ts)
+    finally:
+        print('Looking for new backblasts from Slack...')
 
-                        logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for AO: %s, Date: %s", inserts, ao_id, bd_date)
-                    else:
-                        logging.info("No PAX Found in Attendance for AO: %s, Date: %s", ao_id, bd_date)
-            else:
-                pass
-            
-            if send_q_msg == 2:
-                q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
-
-                # Only send the message at 3pm each day or if the backblast was posted in the last hour
+    # Get all channel conversation
+    messages_df = pd.DataFrame([], columns=['user_id', 'message_type', 'timestamp', 'ts_edited', 'text', 'channel_id']) #creates an empty dataframe to append to
+    
+    for row in channels_df.itertuples(index=False):
+        id, ao = row.channel_id, row.ao
+        data = ''
+        pages = 1
+        while True:
+            try:
+                response = slack.conversations_history(channel=id, cursor=data)
+                response_metadata = response.get('response_metadata', {})
                 try:
-                    if today.hour == 15 or  ( safe_cast(ts_edited, float) or safe_cast(timestamp, float) >= ( current_ts - 3600)):
+                    next_cursor = response_metadata.get('next_cursor')
+                except:
+                    print("Hello World")
+                    pass
+                messages = response.data['messages']
+                temp_df = pd.json_normalize(messages)
+                try:
+                    temp_df = temp_df[['user', 'type', 'text', 'ts', 'edited.ts']]
+                except Exception as e:
+                    temp_df = temp_df[['user', 'type', 'text', 'ts']]
+                    temp_df['edited.ts'] = "NA"
+                finally:
+                    temp_df["user"]=temp_df["user"].fillna("APP")
+                    temp_df = temp_df.rename(columns={'user' : 'user_id', 'type' : 'message_type', 'ts' : 'timestamp', 'edited.ts' : 'ts_edited'})
+                    temp_df["channel_id"] = id
+                    messages_df = pd.concat([messages_df, temp_df], ignore_index=True)
+            except:
+                logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
+                pm_log_text += "Error: Unable to access Slack channel " + id + ", " + ao + " in region " + db + "\n"
+            if next_cursor != "None":
+                # Keep going from next offset.
+                data = next_cursor
+                if pages == 1: ## Total number of pages to query from Slack
+                    break
+                pages = pages + 1
+            else:
+                break
+
+    # Calculate Date and Time columns
+    msg_date = []
+    msg_time = []
+    for ts in messages_df['timestamp']:
+            seconds_since_epoch = float(ts)
+            dt = epoch + timedelta(seconds=seconds_since_epoch)
+            dt = dt.replace(tzinfo=pytz.utc)
+            dt = dt.astimezone(pytz.timezone('America/Chicago'))
+            msg_date.append(dt.strftime('%Y-%m-%d'))
+            msg_time.append(dt.strftime('%H:%M:%S'))
+    messages_df['msg_date'] = msg_date
+    messages_df['time'] = msg_time
+
+
+    # Merge the data frames into 1 joined DF
+    f3_df = pd.merge(messages_df, users_df)
+    f3_df = pd.merge(f3_df,channels_df)
+    f3_df = f3_df[['timestamp', 'ts_edited', 'msg_date', 'time', 'channel_id', 'ao', 'user_id', 'user_name', 'real_name', 'text']]
+    f3_df['ts_edited'] = f3_df['ts_edited'].fillna('NA')
+
+    # Now find only backblast messages (either "Backblast" or "Back Blast") - note .casefold() denotes case insensitivity - and pull out the PAX user ID's identified within
+    # This pattern finds username links followed by commas: pat = r'(?<=\\xa0).+?(?=,)'
+     # This pattern finds username links within brackets <>
+    bd_df = pd.DataFrame([])
+    pax_attendance_df = pd.DataFrame([])
+    warnings.filterwarnings("ignore", category=DeprecationWarning) #This prevents displaying the Deprecation Warning that is present for the RegEx lookahead function used below
+    # Iterate through the new bd_df dataframe, pull out the channel_name, date, and text line from Slack. Process the text line to find the beatdown info
+    for index, row in f3_df.iterrows():
+        ao_tmp = row['channel_id']
+        timestamp = row['timestamp']
+        ts_edited = row['ts_edited']
+        msg_date = row['msg_date']
+        text_tmp = row['text']
+        text_tmp = re.sub('_\\xa0', ' ', str(text_tmp))
+        text_tmp = re.sub('\\xa0', ' ', str(text_tmp))
+        text_tmp = re.sub(r'_\*', '', str(text_tmp))
+        text_tmp = re.sub(r'\*_', '', str(text_tmp))
+        text_tmp = re.sub(r'\*', '', str(text_tmp))
+        user_name = row['user_name']
+        user_id = row['user_id']
+
+        # Backblast criteria one. Be over the minimum length and contain the backblast keyword
+        if (len(str(text_tmp)) >= len(MIN_BACKBLAST)) and containsBackblastKeyword(text_tmp):
+            line_matches, new_row = bd_info(text_tmp, users_dict, aos_dict, timestamp, ts_edited, msg_date, ao_tmp, user_name, user_id)
+
+            # Backblast criteria two. Besides the backblast keyword, contain one other properly formatted line.
+            if line_matches >= 1:
+                if float(new_row["timestamp"]) > float(cutoff_ts):
+                    upsertAction = determine_db_action(new_row, find_match(new_row, previously_saved_beatdowns))
+
+                    new_row["database_action"] = upsertAction
+                    
+                    # Ensure temp_df is a DataFrame
+                    if isinstance(new_row, dict):
+                        new_row = pd.DataFrame([new_row])
+
+                    bd_df = pd.concat([bd_df, new_row], ignore_index= True)
+
+    # Now connect to the AWS database and insert some rows!
+    try:
+        with mydb.cursor() as cursor:
+            for index, row in bd_df.iterrows():
+                qc = 1
+                send_q_msg = 0
+                
+                update_sql = """
+                    UPDATE beatdowns 
+                    SET timestamp=%s, ts_edited=%s, ao_id=%s, bd_date=%s, q_user_id=%s, coq_user_id=%s, pax_count=%s, backblast=%s, fngs=%s, backblast_parsed=%s
+                    WHERE timestamp=%s
+                    LIMIT 1
+                """
+                insert_sql = "INSERT into beatdowns (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                
+                timestamp = row['timestamp']
+                ts_edited = row['ts_edited']
+                channel_id = row['channel_id']
+                msg_date = row['msg_date']
+                bd_date = row['bd_date']
+                q_user_id = row['q_user_id']
+                coq_user_id = row['coq_user_id']
+                pax_count = row['pax_count']
+                backblast = row['backblast']
+                user_name = row['user_name']
+                user_id = row['user_id']
+                fngs = row['fngs']
+                msg_link = slack.chat_getPermalink(channel=channel_id, message_ts=timestamp)["permalink"]
+                parsed_ao_channel = row['parsed_ao_channel_id']
+                database_action = row["database_action"]
+                backblast_parsed = row['backblast_parsed']
+                
+                if parsed_ao_channel in channels_df["channel_id"].values :
+                    ao_id = parsed_ao_channel
+                else : 
+                    ao_id = channel_id
+                
+                val = (timestamp, ts_edited, ao_id, bd_date, q_user_id, coq_user_id, pax_count, backblast, fngs, backblast_parsed)
+                # for Slackblast users, set the user_id as the Q
+                appnames = ['slackblast', 'Slackblast']
+                if user_name in appnames:
+                    user_id = q_user_id
+                    user_name = 'Q'
+                q_error_text = "Paxminer failed to import your latest backblast.\n"
+                q_message_end = "Backblast message posted on " + msg_date + " at <#" + ao_id + "> (<" + msg_link + "|link>)\n"
+                # pm_log_text += "- Processing <" + msg_link + "|this> backblast."
+
+                if database_action == DbAction.IGNORE:
+                    logging.debug("Encountered a bblast already recorded and has not been modified. Skipping import")
+                    continue
+                
+                if q_user_id == 'NA':
+                    logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
+                    print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
+                    pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    if user_id != 'APP':
+                        q_error_text += " - ERROR: The Q is not present or not tagged correctly. Please ensure the Q is tagged using @PAX_NAME \n"
                         send_q_msg = 2
-                    else:
-                        send_q_msg = 0
-                except Exception as error:
-                    print("An error occurred determining to send an error message", error)
-                    logging.error("An error occured determining to send an error message: %s", error)
- 
-            if send_q_msg == 1:
-                slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
-            if send_q_msg == 2:
-                slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
+                    qc = 0
+                else:
+                    pass
+                if pax_count == -1:
+                    logging.warning("Count error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
+                    print('Backblast error on Count - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". Slack message sent to Q.")
+                    pm_log_text += " - Backblast error on Count at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    if user_id != 'APP':
+                        q_error_text += " - ERROR: The Count is not present or not entered correctly. The correct syntax is Count: XX - Use digits please. \n"
+                        send_q_msg = 2
+                    qc = 0
+                else:
+                    pass
+            
+                if not isValidDate(bd_date, today):
+                    logging.warning("Date error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
+                    print('Backblast error on Date - AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name,". Slack message sent to Q. bd: ", bd_date, "cutoff:", cutoff_date)
+                    pm_log_text += " - Backblast error on Date - AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ". Slack message sent to Q.\n"
+                    if user_id != 'APP':
+                        q_error_text += " - ERROR: The Date is not entered correctly. I can understand most common date formats like Date: 12-25-2020, Date: 2021-12-25, Date: 12/25/21, or Date: December 25, 2021. Common mistakes include a date from the future, a date with the time appended, or a date more than one month on the past.\n"
+                        send_q_msg = 2
+                    qc = 0
+                
+                if qc == 1:
+                    try :
+                        if database_action == DbAction.UPDATE :
+                            cursor.execute(update_sql, val + (timestamp,))
+                        else:
+                            cursor.execute(insert_sql, val)
+                        
+                        mydb.commit()
+                    except Exception as error:
+                        logging.error("An error occured writing to the datastore: %s")
+                        logging.error(error)
 
-        sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
-        cursor.execute(sql3)
-        mydb.commit()
+                    if cursor.rowcount == 1:
+                        print(cursor.rowcount, "records inserted.")
+                        print('Beatdown Date:', bd_date)
+                        print('Message Posting Date:', msg_date)
+                        print('AO:', ao_id)
+                        print('Q:', q_user_id)
+                        print('Co-Q', coq_user_id)
+                        print('Pax Count:',pax_count)
+                        print('fngs:', fngs)
+                        if database_action == DbAction.UPDATE :
+                            pm_log_text += " - Backblast successfully updated for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                            if user_id != 'APP':
+                                q_success_text = "Successfully updated your backblast after it had been changed for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting and updating your BB! \n"
+                                send_q_msg = 1
+                        else:
+                            pm_log_text += " - Backblast successfully imported for AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + "\n"
+                            if user_id != 'APP':
+                                q_success_text = "Successfully imported your backblast for " + bd_date + " at <#" + ao_id + ">. I see you had " + str(math.trunc(pax_count)) + " PAX in attendance and FNGs were: " + str(fngs) + ". Thanks for posting your BB! \n"
+                                send_q_msg = 1
+                        
+                        logging.info("Backblast imported for AO: %s, Date: %s", ao_id, bd_date)
 
-        sql4 = "UPDATE beatdowns SET fng_count=0 where fngs in ('none', 'None', 'None listed', 'NA', 'zero', '-', '') AND fng_count IS NULL"
-        cursor.execute(sql4)
-        mydb.commit()
+                        pax = list_pax(backblast)
 
-        sql5 = "UPDATE beatdowns SET fng_count = 0 where fngs like '0%' AND fng_count IS NULL"
-        cursor.execute(sql5)
-        mydb.commit()
+                        if pax:
+                            logging.info("Inserting PAX attendance for AO: %s, Date: %s", ao_id, bd_date)
+                            pax_df = pd.DataFrame(pax)
+                            pax_df['timestamp'] = timestamp
+                            pax_df['ts_edited'] = ts_edited
+                            pax_df.columns =['user_id', 'timestamp', 'ts_edited']
 
-        sql6 = "UPDATE beatdowns SET fng_count = 1 where fngs like '1%' AND fng_count IS NULL"
-        cursor.execute(sql6)
-        mydb.commit()
+                            pax_df['ao'] = ao_id
+                            pax_df['bd_date'] = bd_date
+                            pax_df['msg_date'] = msg_date
+                            pax_df['q_user_id'] = q_user_id
+                            pax_df["coq_user_id"] = coq_user_id
+                            inserts = insert_beatdown_attendance(mydb, cursor, pax_df, database_action, timestamp, cutoff_date)
+                            mydb.commit()
 
-        sql7 = "UPDATE beatdowns SET fng_count = 2 where fngs like '2%' AND fng_count IS NULL"
-        cursor.execute(sql7)
-        mydb.commit()
+                            logging.info("PAX attendance updates complete: Inserted %s new PAX attendance records for AO: %s, Date: %s", inserts, ao_id, bd_date)
+                        else:
+                            logging.info("No PAX Found in Attendance for AO: %s, Date: %s", ao_id, bd_date)
+                else:
+                    pass
+                
+                if send_q_msg == 2:
+                    q_error_text += "You can also check for other common mistakes that cause errors - such as spaces at the beginning of Date:, Q:, AO:, or other lines, or even other messages you may have posted that begin with the word Backblast."
 
-        sql8 = "UPDATE beatdowns SET fng_count = 3 where fngs like '3%' AND fng_count IS NULL"
-        cursor.execute(sql8)
-        mydb.commit()
+                    # Only send the message at 3pm each day or if the backblast was posted in the last hour
+                    try:
+                        if today.hour == 15 or  ( safe_cast(ts_edited, float) or safe_cast(timestamp, float) >= ( current_ts - 3600)):
+                            send_q_msg = 2
+                        else:
+                            send_q_msg = 0
+                    except Exception as error:
+                        logging.error("An error occured determining to send an error message: %s")
+                        logging.error(error)
+    
+                # if send_q_msg == 1:
+                #     slack.chat_postMessage(channel=user_id, text=q_success_text + q_message_end)
+                # if send_q_msg == 2:
+                #     slack.chat_postMessage(channel=user_id, text=q_error_text + q_message_end)
 
-        sql9 = "UPDATE beatdowns SET fng_count = 4 where fngs like '4%' AND fng_count IS NULL"
-        cursor.execute(sql9)
-        mydb.commit()
+            sql3 = "UPDATE beatdowns SET coq_user_id=NULL where coq_user_id = 'NA'"
+            cursor.execute(sql3)
+            mydb.commit()
 
-        sql10 = "UPDATE beatdowns SET fng_count = 5 where fngs like '5%' AND fng_count IS NULL"
-        cursor.execute(sql10)
-        mydb.commit()
-finally:
-    pass
+            sql4 = "UPDATE beatdowns SET fng_count=0 where fngs in ('none', 'None', 'None listed', 'NA', 'zero', '-', '') AND fng_count IS NULL"
+            cursor.execute(sql4)
+            mydb.commit()
 
-mydb.close()
+            sql5 = "UPDATE beatdowns SET fng_count = 0 where fngs like '0%' AND fng_count IS NULL"
+            cursor.execute(sql5)
+            mydb.commit()
 
+            sql6 = "UPDATE beatdowns SET fng_count = 1 where fngs like '1%' AND fng_count IS NULL"
+            cursor.execute(sql6)
+            mydb.commit()
 
-pm_log_text += "End of PAXminer hourly run"
+            sql7 = "UPDATE beatdowns SET fng_count = 2 where fngs like '2%' AND fng_count IS NULL"
+            cursor.execute(sql7)
+            mydb.commit()
 
-logging.info("Beatdown execution complete for region " + db)
-logging.info(f"Time elapsed: {time.time() - current_ts}")
+            sql8 = "UPDATE beatdowns SET fng_count = 3 where fngs like '3%' AND fng_count IS NULL"
+            cursor.execute(sql8)
+            mydb.commit()
 
-try:
-    slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
-except:
-    print("Slack log message error - not posted")
-    logging.error("Slack log message error - not posted")
-    pass
-print('Finished. You may go back to your day!')
+            sql9 = "UPDATE beatdowns SET fng_count = 4 where fngs like '4%' AND fng_count IS NULL"
+            cursor.execute(sql9)
+            mydb.commit()
+
+            sql10 = "UPDATE beatdowns SET fng_count = 5 where fngs like '5%' AND fng_count IS NULL"
+            cursor.execute(sql10)
+            mydb.commit()
+    finally:
+        pass
+
+    mydb.close()
+
+    pm_log_text += "End of PAXminer hourly run"
+
+    logging.info("Beatdown execution complete for region " + db)
+    logging.info(f"Time elapsed: {time.time() - current_ts}")
+
+    # try:
+    #     slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
+    # except:
+    #     print("Slack log message error - not posted")
+    #     logging.error("Slack log message error - not posted")
+    #     pass
+    logging.info('PAX_BD_Miner.py Finished')
