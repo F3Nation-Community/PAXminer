@@ -1,0 +1,7 @@
+slack-sdk==3.26.1
+pandas==2.2.3
+pymysql==1.1.0
+numpy==1.25.2
+matplotlib==3.8.2
+typing-extensions==4.7.1
+dateparser==1.2.1

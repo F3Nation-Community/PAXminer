@@ -3,3 +3,4 @@ plots
 logs
 config/credentials.ini
 .DS_Store
+backblast_scraping/config/*

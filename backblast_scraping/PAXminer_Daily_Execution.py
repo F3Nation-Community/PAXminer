@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-'''
-This script was written by Beaker from F3STL. Questions? @srschaecher on twitter or srschaecher@gmail.com.
-This script executes the daily PAXminer backblast queries and data updates for all F3 regions using PAXminer.
-'''
-
 import pandas as pd
 import pymysql.cursors
 import configparser
@@ -20,7 +15,7 @@ region_regex = sys.argv[1]
 
 # Configure AWS credentials
 config = configparser.ConfigParser();
-config.read('../config/credentials.ini');
+config.read('config/credentials.ini');
 
 # Configure AWS Credentials
 host = config['aws']['host']
@@ -57,6 +52,5 @@ for index, row in regions_df.iterrows():
     print('Executing user updates for region ' + region)
     #os.system("./F3SlackUserLister.py " + db + " " + key)
     #os.system("./F3SlackChannelLister.py " + db + " " + key)
-    #os.system("./BDminer.py " + db + " " + key)
-    #os.system("./PAXminer.py " + db + " " + key)
+    os.system("./PAX_BD_Miner.py " + db + " " + key)
     print('----------------- End of Region Update -----------------\n')

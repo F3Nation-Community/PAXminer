@@ -20,7 +20,6 @@ import logging
 # This handler does retries when HTTP status 429 is returned
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
-
 # Configure AWS credentials
 config = configparser.ConfigParser();
 config.read('../config/credentials.ini');
@@ -28,7 +27,7 @@ host = config['aws']['host']
 port = int(config['aws']['port'])
 user = config['aws']['user']
 password = config['aws']['password']
-#db = config['aws']['db']
+
 db = sys.argv[1]
 
 # Set Slack token
@@ -50,7 +49,7 @@ mydb = pymysql.connect(
 
 #Get Current Year, Month Number and Name
 d = datetime.datetime.now()
-d = d - datetime.timedelta(days=7)
+d = d - datetime.timedelta(days=15)
 thismonth = d.strftime("%m")
 thismonthname = d.strftime("%b")
 thismonthnamelong = d.strftime("%B")
@@ -159,53 +158,65 @@ for user_id in users_df['user_id']:
 
                     ax = attendance_tmp_df.groupby(['Month', 'AO'], sort=False).size().unstack().plot(kind='bar', stacked=True)
                     total_count_for_year = attendance_tmp_df.shape[0]
-    
-                    # Add the total count as text on the chart
-                    ax.text(0.95, 0.95, f"Total: {total_count_for_year}", transform=ax.transAxes, 
-                            fontsize=12, verticalalignment='top', horizontalalignment='right')
-                    
-                    plt.title('Number of posts by '+ pax + ' by AO/Month for ' + yearnum)
-                    plt.legend(loc = 'center left', bbox_to_anchor=(1, 0.5), frameon = False)
-                    plt.ioff()
-                    plt.savefig('../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg', bbox_inches='tight') #save the figure to a file
-                    total_graphs = total_graphs + 1
-                    message = 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!"
-                    file = '../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
 
-                    #manual_graphs = [240,241,242,244,245,246,247,249,250]
-                    if total_graphs > 0: # This is a count of total users processed, in case of error during processing. Set the total_graphs > to whatever # comes next in the log file row count.
-                        print(total_graphs, 'PAX posting graph created for user', pax, 'Sending to Slack now... hang tight!')
-                        
-                        # The current method v2, and legacy method, can both be invoked here depending on the region_method variable.
-                        # Most regions still use the legacy method, but will need to migrate to v2 by Spring 2025. 
-                        # The main difference is that v2 requires an additional conversation scope.
-                        # New regions will all use v2.
-                        # user_id_override = "U06GDMGJKNE"
-                        if region_method == "v2":
-                            try:
-                                response = send_slack_message_v2(user_id_tmp, message, file)
+                    # Calculate total count for the last month
+                    last_month_start = datetime.date(int(yearnum), int(thismonth), 1)
+                    attendance_last_month_df = attendance_tmp_df[attendance_tmp_df['Date'] >= str(last_month_start)]
+                    total_count_last_month = attendance_last_month_df.shape[0]
 
-                                success_message_sent(user_id_tmp, pax, db)
-                            except Exception as e:
-                                # If the error is missing scope, then 
-                                if e.response['error'] == 'missing_scope':
-                                    print("Error: The app is missing required scopes. Please add the 'im:write' scope.")
-                                    region_method = "v1"
-                                else:
+                    try :
+                        if total_count_last_month > 0:
+                            # Add the total count as text on the chart
+                            ax.text(0.95, 0.95, f"Total: {total_count_for_year}", transform=ax.transAxes, 
+                                    fontsize=12, verticalalignment='top', horizontalalignment='right')
+                            
+                            file_path = '../plots/' + db + '/' + user_id_tmp + "_" + thismonthname + yearnum + '.jpg'
+                            plt.title('Number of posts by '+ pax + ' by AO/Month for ' + yearnum)
+                            plt.legend(loc = 'center left', bbox_to_anchor=(1, 0.5), frameon = False)
+                            plt.ioff()
+                            plt.savefig(file_path, bbox_inches='tight') #save the figure to a file
+                            
+                            message = 'Hey ' + pax + "! Here is your monthly posting summary for " + yearnum + ". \nPush yourself, get those bars higher every month! SYITG!"
+                            file = file_path
+
+                            print('PAX posting graph created for user', pax, 'Sending to Slack now... hang tight!')
+                            
+                            # The current method v2, and legacy method, can both be invoked here depending on the region_method variable.
+                            # Most regions still use the legacy method, but will need to migrate to v2 by Spring 2025. 
+                            # The main difference is that v2 requires an additional conversation scope.
+                            # New regions will all use v2.
+                            # user_id_override = "U06GDMGJKNE"
+                            if region_method == "v2":
+                                try:
+                                    response = send_slack_message_v2(user_id_tmp, message, file)
+
+                                    success_message_sent(user_id_tmp, pax, db)
+                                except Exception as e:
+                                    # If the error is missing scope, then 
+                                    if e.response['error'] == 'missing_scope':
+                                        print("Error: The app is missing required scopes. Please add the 'im:write' scope.")
+                                        region_method = "v1"
+                                    else:
+                                        log_message_sent_error(user_id_tmp, db, pax)
+                                        raise e
+
+                            if region_method != "v2":
+                                try:
+                                    channel = user_id_tmp
+                                    response = send_slack_message(channel, message, file)
+                                    
+                                    success_message_sent(user_id_tmp, pax, db)
+                                except:
                                     log_message_sent_error(user_id_tmp, db, pax)
                                     raise e
-
-                        if region_method != "v2":
-                            try:
-                                channel = user_id_tmp
-                                response = send_slack_message(channel, message, file)
                                 
-                                success_message_sent(user_id_tmp, pax, db)
-                            except:
-                                log_message_sent_error(user_id_tmp, db, pax)
-                                raise e
-                    else:
-                        print(pax + ' skipped')
+                        else:
+                            print(pax + ' skipped')
+                    except Exception as e:
+                        print(e)
+                    finally:
+                        plt.close()
+                        
     except Exception as e:
             print(e)
             print("An exception occurred for User ID " + user_id)
