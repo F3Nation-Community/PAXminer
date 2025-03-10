@@ -24,7 +24,7 @@ from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
 MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
-LOOKBACK_DAYS = 7
+LOOKBACK_DAYS = 10
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
 ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
 pat = r'(?<=\<).+?(?=>)'
@@ -307,14 +307,14 @@ def run_pax_bd_miner(host, port, user, password, db, key):
     # Set epoch and yesterday's timestamp for datetime calculations
     epoch = datetime(1970, 1, 1)
     today = datetime.now()
-    cutoff_date = today - timedelta(days = 7)
+    cutoff_date = today - timedelta(days = 10)
     current_ts = time.time()
     cutoff_ts = current_ts - LOOKBACK_SECONDS
     cutoff_date = cutoff_date.strftime('%Y-%m-%d')
     date_time = today.strftime("%m/%d/%Y, %H:%M:%S")
 
     # Set up logging
-    logging.basicConfig(format=f'%(asctime)s [{db}] %(levelname)-8s %(message)s',
+    logging.basicConfig(format=f'%(asctime)s %(levelname)-8s %(message)s',
                             datefmt = '%Y-%m-%d %H:%M:%S',
                             level = logging.INFO)
     logging.info(f"Beginning BD+Paxminer {current_ts}")
@@ -404,7 +404,7 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                     messages_df = pd.concat([messages_df, temp_df], ignore_index=True)
             except Exception as e:
                 logging.warning("Error: Unable to access Slack channel %s in region %s", id, db)
-                logging.error(e)
+                logging.warning(e)
                 pm_log_text += "Error: Unable to access Slack channel " + id + ", " + ao + " in region " + db + "\n"
             if next_cursor != "None":
                 # Keep going from next offset.
@@ -525,7 +525,7 @@ def run_pax_bd_miner(host, port, user, password, db, key):
                 
                 if q_user_id == 'NA':
                     logging.warning("Q error for AO: %s, Date: %s, backblast from Q %s (ID %s) not imported", ao_id, msg_date, user_name, user_id)
-                    print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". bd: ", bd_date, "cutoff:", cutoff_date)
+                    print('Backblast error on Q at AO:', ao_id, 'Date:', msg_date, 'Posted By:', user_name, ". bd: ", bd_date)
                     pm_log_text +=  " - Backblast error on Q at AO: <#" + ao_id + "> Date: " + msg_date + " Posted By: " + user_name + ".\n"
                     if user_id != 'APP':
                         q_error_text += " - ERROR: The Q is not present or not tagged correctly. Please ensure the Q is tagged using @PAX_NAME \n"
@@ -671,6 +671,7 @@ def run_pax_bd_miner(host, port, user, password, db, key):
 
     try:
         slack.chat_postMessage(channel='paxminer_logs', text=pm_log_text)
+        logging.info("Slack log message posted")
     except:
         print("Slack log message error - not posted")
         logging.error("Slack log message error - not posted")

@@ -33,7 +33,7 @@ for index, row in regions_df.iterrows():
     region = row['region']
     key = row['slack_token']
     db = row['schema_name']
-    print(f'Executing user updates for region {region}')
+    print(f'Executing beatdown scraping for region {region}')
 
     try:
         run_pax_bd_miner(host, port, user, password, db, key)
