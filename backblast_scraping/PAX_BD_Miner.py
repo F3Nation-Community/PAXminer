@@ -24,7 +24,7 @@ from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
 
 MIN_BACKBLAST = 'Backblast:AO:PAX:@x@yQ:@xCount:0'
 SECONDS_PER_DAY = 86400
-LOOKBACK_DAYS = 10
+LOOKBACK_DAYS = 7
 LOOKBACK_SECONDS = SECONDS_PER_DAY * LOOKBACK_DAYS
 ALLOWABLE_DAYS_BACKBLAST_DATE_VALID = 30
 pat = r'(?<=\<).+?(?=>)'
@@ -307,7 +307,7 @@ def run_pax_bd_miner(host, port, user, password, db, key):
     # Set epoch and yesterday's timestamp for datetime calculations
     epoch = datetime(1970, 1, 1)
     today = datetime.now()
-    cutoff_date = today - timedelta(days = 10)
+    cutoff_date = today - timedelta(days = LOOKBACK_DAYS)
     current_ts = time.time()
     cutoff_ts = current_ts - LOOKBACK_SECONDS
     cutoff_date = cutoff_date.strftime('%Y-%m-%d')
